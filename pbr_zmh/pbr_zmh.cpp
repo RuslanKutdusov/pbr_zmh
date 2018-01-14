@@ -39,6 +39,10 @@ CDXUTSDKMesh                        g_ball;
 ID3DX11EffectTechnique*              g_LightingPass = nullptr;
 ID3DX11EffectMatrixVariable*         g_viewProjMatrixParam = nullptr;
 ID3DX11EffectMatrixVariable*         g_WorldMatrixParam = nullptr;
+ID3DX11EffectVectorVariable*         g_LightDirParam = nullptr;
+
+float g_lightDirVert = 45.0f;
+float g_lightDirHor = 130.0f;
 
 
 //--------------------------------------------------------------------------------------
@@ -46,11 +50,22 @@ ID3DX11EffectMatrixVariable*         g_WorldMatrixParam = nullptr;
 //--------------------------------------------------------------------------------------
 #define IDC_STATIC                 -1
 #define IDC_CHANGEDEVICE            1
+#define IDC_LIGHTVERT_STATIC		2
+#define IDC_LIGHTVERT				3
+#define IDC_LIGHTHOR_STATIC			4
+#define IDC_LIGHTHOR				5
 
 
 //
 void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext);
 void InitApp();
+
+
+//
+float ToRad( float deg )
+{
+	return deg * XM_PI / 180.0f;
+}
 
 
 //--------------------------------------------------------------------------------------
@@ -107,6 +122,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	// Obtain the parameter handles
 	g_viewProjMatrixParam = g_pbrEffect->GetVariableByName("ViewProjMatrix")->AsMatrix();
 	g_WorldMatrixParam = g_pbrEffect->GetVariableByName("WorldMatrix")->AsMatrix();
+	g_LightDirParam = g_pbrEffect->GetVariableByName("LightDir")->AsVector();
 
 	const D3D11_INPUT_ELEMENT_DESC elementsDesc[] =
 	{
@@ -190,6 +206,14 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	XMMATRIX mProj = g_Camera.GetProjMatrix();
 	XMMATRIX mView = g_Camera.GetViewMatrix();
+
+	float fVertAngel = ToRad(g_lightDirVert);
+	float dVertAngel = ToRad(g_lightDirHor);
+	float lightDir[4];
+	lightDir[ 0 ] = sin(fVertAngel) * sin(dVertAngel);
+	lightDir[ 1 ] = cos(fVertAngel);
+	lightDir[ 2 ] = sin(fVertAngel) * cos(dVertAngel);
+	g_LightDirParam->SetFloatVector(lightDir);
 
 	XMMATRIX viewProj = XMMatrixMultiply(mView, mProj);
 	g_viewProjMatrixParam->SetMatrix((float*)&viewProj);
@@ -369,15 +393,42 @@ void InitApp()
 	g_HUD.SetCallback(OnGUIEvent);
 	int iY = 10;
 	g_HUD.AddButton(IDC_CHANGEDEVICE, L"Change device (F2)", 0, iY, 170, 23, VK_F2);
+
+	iY += 50;
+	WCHAR str[MAX_PATH];
+	swprintf_s(str, MAX_PATH, L"Light vert: %f", g_lightDirVert);
+	g_HUD.AddStatic(IDC_LIGHTVERT_STATIC, str, 25, iY += 24, 135, 22);
+	g_HUD.AddSlider(IDC_LIGHTVERT, 15, iY += 24, 135, 22, 0, 90, ( int )( g_lightDirVert * 90.0f ) );
+
+	swprintf_s(str, MAX_PATH, L"Light hor: %f", g_lightDirHor);
+	g_HUD.AddStatic(IDC_LIGHTHOR_STATIC, str, 25, iY += 24, 135, 22);
+	g_HUD.AddSlider(IDC_LIGHTHOR, 15, iY += 24, 135, 22, 0, 180, (int)(g_lightDirHor * 180.0f));
 }
 
 
 void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext)
 {
+	WCHAR str[MAX_PATH];
+
 	switch (nControlID)
 	{
 		case IDC_CHANGEDEVICE:
-				g_D3DSettingsDlg.SetActive(!g_D3DSettingsDlg.IsActive()); break;
+			g_D3DSettingsDlg.SetActive(!g_D3DSettingsDlg.IsActive()); 
+			break;
+		case IDC_LIGHTVERT:
+		{
+			g_lightDirVert = ( float )g_HUD.GetSlider(IDC_LIGHTVERT)->GetValue();
+			swprintf_s(str, MAX_PATH, L"Light vert: %f", g_lightDirVert);
+			g_HUD.GetStatic(IDC_LIGHTVERT_STATIC)->SetText(str);
+			break;
+		}
+		case IDC_LIGHTHOR:
+		{
+			g_lightDirHor = ( float )g_HUD.GetSlider(IDC_LIGHTHOR)->GetValue();
+			swprintf_s(str, MAX_PATH, L"Light hor: %f", g_lightDirHor);
+			g_HUD.GetStatic(IDC_LIGHTHOR_STATIC)->SetText(str);
+			break;
+		}
 	}
 }
 

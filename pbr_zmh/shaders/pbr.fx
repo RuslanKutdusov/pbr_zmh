@@ -9,6 +9,7 @@ struct Vertex
 struct VSOutput
 {
 	float4 pos : SV_Position;
+	float3 normal : NORMAL;
 };
 
 
@@ -16,6 +17,7 @@ cbuffer Params
 {
 	float4x4 ViewProjMatrix;
 	float4x4 WorldMatrix;
+	float4 LightDir;
 };
 
 
@@ -26,13 +28,18 @@ VSOutput vs_main( Vertex input )
     float4 pos = mul( float4( input.pos, 1 ), ViewProjMatrix);
     output.pos = mul( pos, WorldMatrix );
 
+	output.normal = mul( input.norm, WorldMatrix );
+
     return output;
 }
 
 
 float4 ps_main( VSOutput input ) : SV_Target
 {
+	float3 normal = normalize( input.normal );
+
     float4 ret = float4( 1.0f, 1.0f, 1.0f, 1.0f );
+	ret *= dot( normal, LightDir );
 	return ret;
 }
 
