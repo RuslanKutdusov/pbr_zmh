@@ -3,6 +3,7 @@
   <ItemGroup>
     <ClCompile Include="pbr_zmh.cpp" />
     <ClCompile Include="SphereRenderer.cpp" />
+    <ClCompile Include="SkyRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
@@ -28,6 +29,7 @@
     </CLInclude>
     <ClInclude Include="SphereRenderer.h" />
     <ClInclude Include="Precompiled.h" />
+    <ClInclude Include="SkyRenderer.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shaders\pbr.fx">

@@ -382,6 +382,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="SkyRenderer.cpp" />
     <ClCompile Include="SphereRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -395,6 +396,7 @@
   <ItemGroup>
     <ClInclude Include="Precompiled.h" />
     <CLInclude Include="resource.h" />
+    <ClInclude Include="SkyRenderer.h" />
     <ClInclude Include="SphereRenderer.h" />
     <ResourceCompile Include="pbr_zmh.rc" />
   </ItemGroup>

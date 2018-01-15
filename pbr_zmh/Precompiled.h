@@ -9,4 +9,5 @@
 #include "DDSTextureLoader.h"
 
 #include "SphereRenderer.h"
+#include "SkyRenderer.h"
 

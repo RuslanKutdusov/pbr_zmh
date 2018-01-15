@@ -29,6 +29,7 @@ ID3D11Buffer*						g_globalParamsBuf = nullptr;
 ID3D11DepthStencilState*			g_depthStencilState = nullptr;
 ID3D11RasterizerState*				g_rasterizerState = nullptr;
 SphereRenderer						g_sphereRenderer;
+SkyRenderer							g_skyRenderer;
 
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
@@ -111,6 +112,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	g_Camera.SetViewParams(s_vEyeStart, s_vAtStart);
 
 	g_sphereRenderer.OnD3D11CreateDevice( pd3dDevice );
+	g_skyRenderer.OnD3D11CreateDevice( pd3dDevice );
 
 	D3D11_RASTERIZER_DESC rasterDesc;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
@@ -220,6 +222,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 
 	//
+	g_skyRenderer.Render( pd3dImmediateContext );
 	g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, pd3dImmediateContext );
 
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
@@ -258,6 +261,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_depthStencilState );
 
 	g_sphereRenderer.OnD3D11DestroyDevice();
+	g_skyRenderer.OnD3D11DestroyDevice();
 }
 
 
