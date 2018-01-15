@@ -1,18 +1,18 @@
-#include "DXUT.h"
-#include "DXUTgui.h"
-#include "DXUTsettingsdlg.h"
-#include "DXUTcamera.h"
-#include "SDKmisc.h"
-#include "SDKmesh.h"
-#include "DXUTRes.h"
+#include "Precompiled.h"
 #include "resource.h"
-#include "DDSTextureLoader.h"
-
-#include <d3dx11effect.h>
 
 #pragma warning( disable : 4100 )
 
 using namespace DirectX;
+
+
+//
+struct GlobalParams
+{
+	XMMATRIX ViewProjMatrix;
+	XMVECTOR ViewPos;
+	XMVECTOR LightDir;
+};
 
 
 //--------------------------------------------------------------------------------------
@@ -25,17 +25,10 @@ CDXUTDialog                         g_HUD;                  // manages the 3D UI
 CDXUTDialog                         g_SampleUI;             // dialog for sample specific controls
 CDXUTTextHelper*                    g_pTxtHelper = nullptr;
 
-ID3DX11Effect*                      g_pbrEffect = nullptr;
-ID3D11InputLayout*                  g_inputLayout = nullptr;
-CDXUTSDKMesh                        g_sphereMesh;
-
-ID3DX11EffectTechnique*              g_LightingPass = nullptr;
-ID3DX11EffectMatrixVariable*         g_viewProjMatrixParam = nullptr;
-ID3DX11EffectMatrixVariable*         g_WorldMatrixParam = nullptr;
-ID3DX11EffectVectorVariable*         g_viewPosParam = nullptr;
-ID3DX11EffectVectorVariable*         g_LightDirParam = nullptr;
-ID3DX11EffectScalarVariable*		g_metalnessParam = nullptr;
-ID3DX11EffectScalarVariable*		g_roughnessParam = nullptr;
+ID3D11Buffer*						g_globalParamsBuf = nullptr;
+ID3D11DepthStencilState*			g_depthStencilState = nullptr;
+ID3D11RasterizerState*				g_rasterizerState = nullptr;
+SphereRenderer						g_sphereRenderer;
 
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
@@ -103,54 +96,47 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	V_RETURN(g_D3DSettingsDlg.OnD3D11CreateDevice(pd3dDevice));
 	g_pTxtHelper = new CDXUTTextHelper(pd3dDevice, pd3dImmediateContext, &g_DialogResourceManager, 15);
 
-	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-	// Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
-	// Setting this flag improves the shader debugging experience, but still allows 
-	// the shaders to be optimized and to run exactly the way they will run in 
-	// the release configuration of this program.
-	dwShaderFlags |= D3DCOMPILE_DEBUG;
-#ifdef _DEBUG
-	// Disable optimizations to further improve shader debugging
-	dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-
-	// Read the D3DX effect file
-	WCHAR str[MAX_PATH];
-	V_RETURN(DXUTFindDXSDKMediaFileCch(str, MAX_PATH, L"shaders\\pbr.fx"));
-	V_RETURN(D3DX11CompileEffectFromFile(str, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, dwShaderFlags, 0, pd3dDevice, &g_pbrEffect, nullptr));
-
-	// Obtain the technique handles
-	g_LightingPass = g_pbrEffect->GetTechniqueByName("Lighting");
-
-	// Obtain the parameter handles
-	g_viewProjMatrixParam = g_pbrEffect->GetVariableByName("ViewProjMatrix")->AsMatrix();
-	g_WorldMatrixParam = g_pbrEffect->GetVariableByName("WorldMatrix")->AsMatrix();
-	g_viewPosParam = g_pbrEffect->GetVariableByName( "ViewPos" )->AsVector();
-	g_LightDirParam = g_pbrEffect->GetVariableByName("LightDir")->AsVector();
-	g_metalnessParam = g_pbrEffect->GetVariableByName( "Metalness" )->AsScalar();
-	g_roughnessParam = g_pbrEffect->GetVariableByName( "Roughness" )->AsScalar();
-
-	const D3D11_INPUT_ELEMENT_DESC elementsDesc[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXTURE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	};
-	int iNumElements = sizeof(elementsDesc) / sizeof(D3D11_INPUT_ELEMENT_DESC);
-
-	D3DX11_PASS_DESC PassDesc;
-	auto pPass = g_LightingPass->GetPassByIndex(0);
-	V_RETURN(pPass->GetDesc(&PassDesc));
-	V_RETURN(pd3dDevice->CreateInputLayout(elementsDesc, iNumElements, PassDesc.pIAInputSignature,
-		PassDesc.IAInputSignatureSize, &g_inputLayout));
-
-	// Load meshes
-	V_RETURN(g_sphereMesh.Create(pd3dDevice, L"Misc\\sphere.sdkmesh"));
+	D3D11_BUFFER_DESC Desc;
+	Desc.Usage = D3D11_USAGE_DYNAMIC;
+	Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	Desc.MiscFlags = 0;
+	Desc.ByteWidth = sizeof( GlobalParams );
+	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &g_globalParamsBuf ) );
+	DXUT_SetDebugName( g_globalParamsBuf, "GlobalParams" );
 
 	// Setup the camera's view parameters
 	static const XMVECTORF32 s_vEyeStart = { 0.f, 0.f, -5.f, 0.f };
 	static const XMVECTORF32 s_vAtStart = { 0.f, 0.f, 0.f, 0.f };
 	g_Camera.SetViewParams(s_vEyeStart, s_vAtStart);
+
+	g_sphereRenderer.OnD3D11CreateDevice( pd3dDevice );
+
+	D3D11_RASTERIZER_DESC rasterDesc;
+	rasterDesc.FillMode = D3D11_FILL_SOLID;
+	rasterDesc.CullMode = D3D11_CULL_BACK;
+	rasterDesc.FrontCounterClockwise = FALSE;
+	rasterDesc.DepthBias = D3D11_DEFAULT_DEPTH_BIAS;
+	rasterDesc.DepthBiasClamp = D3D11_DEFAULT_DEPTH_BIAS_CLAMP;
+	rasterDesc.SlopeScaledDepthBias = D3D11_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	rasterDesc.DepthClipEnable = TRUE;
+	rasterDesc.ScissorEnable = FALSE;
+	rasterDesc.MultisampleEnable = FALSE;
+	rasterDesc.AntialiasedLineEnable = FALSE;
+	pd3dDevice->CreateRasterizerState( &rasterDesc, &g_rasterizerState );
+
+	D3D11_DEPTH_STENCIL_DESC depthDesc;
+	depthDesc.DepthEnable = TRUE;
+	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+	depthDesc.DepthFunc = D3D11_COMPARISON_LESS;
+	depthDesc.StencilEnable = FALSE;
+	depthDesc.StencilReadMask = D3D11_DEFAULT_STENCIL_READ_MASK;
+	depthDesc.StencilWriteMask = D3D11_DEFAULT_STENCIL_WRITE_MASK;
+	const D3D11_DEPTH_STENCILOP_DESC defaultStencilOp =
+	{ D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS };
+	depthDesc.FrontFace = defaultStencilOp;
+	depthDesc.BackFace = defaultStencilOp;
+	pd3dDevice->CreateDepthStencilState( &depthDesc, &g_depthStencilState );
 
     return S_OK;
 }
@@ -210,47 +196,31 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	auto pDSV = DXUTGetD3D11DepthStencilView();
 	pd3dImmediateContext->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0, 0);
 
-	XMMATRIX mProj = g_Camera.GetProjMatrix();
-	XMMATRIX mView = g_Camera.GetViewMatrix();
-	XMMATRIX viewProj = XMMatrixMultiply( mView, mProj );
-	g_viewProjMatrixParam->SetMatrix( ( float* )&viewProj );
+	pd3dImmediateContext->RSSetState( g_rasterizerState );
+	pd3dImmediateContext->OMSetDepthStencilState( g_depthStencilState, 0 );
 
-	XMVECTOR viewPos = g_Camera.GetEyePt();
-	g_viewPosParam->SetFloatVector( ( float* )&viewPos );
+	// update global params
+	{
+		D3D11_MAPPED_SUBRESOURCE mappedSubres;
+		pd3dImmediateContext->Map( g_globalParamsBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
 
-	float lightDirVert = ToRad( ( float )g_lightDirVert );
-	float lightDirHor = ToRad( ( float )g_lightDirHor );
-	float lightDir[4];
-	lightDir[ 0 ] = sin( lightDirVert ) * sin( lightDirHor );
-	lightDir[ 1 ] = cos( lightDirVert );
-	lightDir[ 2 ] = sin( lightDirVert ) * cos( lightDirHor );
-	g_LightDirParam->SetFloatVector(lightDir);
+		GlobalParams* globalParams = ( GlobalParams* )mappedSubres.pData;
+		globalParams->ViewProjMatrix = XMMatrixMultiply( g_Camera.GetViewMatrix(), g_Camera.GetProjMatrix() );
+		globalParams->ViewPos = g_Camera.GetEyePt();
+		float lightDirVert = ToRad( ( float )g_lightDirVert );
+		float lightDirHor = ToRad( ( float )g_lightDirHor );
+		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
+
+		pd3dImmediateContext->Unmap( g_globalParamsBuf, 0 );
+
+		// apply
+		pd3dImmediateContext->VSSetConstantBuffers( 0, 1, &g_globalParamsBuf );
+		pd3dImmediateContext->PSSetConstantBuffers( 0, 1, &g_globalParamsBuf );
+	}
+
 
 	//
-	pd3dImmediateContext->IASetInputLayout(g_inputLayout);
-
-	ID3D11Buffer* pVB = g_sphereMesh.GetVB11(0, 0);
-	UINT Strides = (UINT)g_sphereMesh.GetVertexStride(0, 0);
-	UINT Offsets = 0;
-	pd3dImmediateContext->IASetVertexBuffers(0, 1, &pVB, &Strides, &Offsets);
-	pd3dImmediateContext->IASetIndexBuffer(g_sphereMesh.GetIB11(0), g_sphereMesh.GetIBFormat11(0), 0);
-
-	XMMATRIX worldMatrix = XMMatrixIdentity();
-	g_WorldMatrixParam->SetMatrix((float*)&worldMatrix);
-	g_metalnessParam->SetFloat( g_metalness );
-	g_roughnessParam->SetFloat( g_roughness );
-	g_LightingPass->GetPassByIndex( 0 )->Apply( 0, pd3dImmediateContext );
-
-	for (UINT subset = 0; subset < g_sphereMesh.GetNumSubsets(0); ++subset)
-	{
-		// Get the subset
-		auto pSubset = g_sphereMesh.GetSubset(0, subset);
-
-		auto PrimType = CDXUTSDKMesh::GetPrimitiveType11((SDKMESH_PRIMITIVE_TYPE)pSubset->PrimitiveType);
-		pd3dImmediateContext->IASetPrimitiveTopology(PrimType);
-
-		pd3dImmediateContext->DrawIndexed((UINT)pSubset->IndexCount, 0, (UINT)pSubset->VertexStart);
-	}
+	g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, pd3dImmediateContext );
 
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
 	g_HUD.OnRender(fElapsedTime);
@@ -283,10 +253,11 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	g_D3DSettingsDlg.OnD3D11DestroyDevice();
 	SAFE_DELETE(g_pTxtHelper);
 	DXUTGetGlobalResourceCache().OnDestroyDevice();
-	SAFE_RELEASE(g_pbrEffect);
-	SAFE_RELEASE(g_inputLayout);
+	SAFE_RELEASE( g_globalParamsBuf );
+	SAFE_RELEASE( g_rasterizerState );
+	SAFE_RELEASE( g_depthStencilState );
 
-	g_sphereMesh.Destroy();
+	g_sphereRenderer.OnD3D11DestroyDevice();
 }
 
 
