@@ -1,10 +1,3 @@
-//--------------------------------------------------------------------------------------
-// File: EmptyProject11.cpp
-//
-// Empty starting point for new Direct3D 11 Win32 desktop applications
-//
-// Copyright (c) Microsoft Corporation. All rights reserved.
-//--------------------------------------------------------------------------------------
 #include "DXUT.h"
 #include "DXUTgui.h"
 #include "DXUTsettingsdlg.h"
@@ -41,8 +34,8 @@ ID3DX11EffectMatrixVariable*         g_viewProjMatrixParam = nullptr;
 ID3DX11EffectMatrixVariable*         g_WorldMatrixParam = nullptr;
 ID3DX11EffectVectorVariable*         g_LightDirParam = nullptr;
 
-float g_lightDirVert = 45.0f;
-float g_lightDirHor = 130.0f;
+int g_lightDirVert = 45;
+int g_lightDirHor = 130;
 
 
 //--------------------------------------------------------------------------------------
@@ -207,12 +200,12 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	XMMATRIX mProj = g_Camera.GetProjMatrix();
 	XMMATRIX mView = g_Camera.GetViewMatrix();
 
-	float fVertAngel = ToRad(g_lightDirVert);
-	float dVertAngel = ToRad(g_lightDirHor);
+	float lightDirVert = ToRad( ( float )g_lightDirVert );
+	float lightDirHor = ToRad( ( float )g_lightDirHor );
 	float lightDir[4];
-	lightDir[ 0 ] = sin(fVertAngel) * sin(dVertAngel);
-	lightDir[ 1 ] = cos(fVertAngel);
-	lightDir[ 2 ] = sin(fVertAngel) * cos(dVertAngel);
+	lightDir[ 0 ] = sin( lightDirVert ) * sin( lightDirHor );
+	lightDir[ 1 ] = cos( lightDirVert );
+	lightDir[ 2 ] = sin( lightDirVert ) * cos( lightDirHor );
 	g_LightDirParam->SetFloatVector(lightDir);
 
 	XMMATRIX viewProj = XMMatrixMultiply(mView, mProj);
@@ -229,6 +222,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	XMMATRIX worldMatrix = XMMatrixIdentity();
 	g_WorldMatrixParam->SetMatrix((float*)&worldMatrix);
+	g_LightingPass->GetPassByIndex( 0 )->Apply( 0, pd3dImmediateContext );
 
 	for (UINT subset = 0; subset < g_ball.GetNumSubsets(0); ++subset)
 	{
@@ -238,17 +232,18 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		auto PrimType = CDXUTSDKMesh::GetPrimitiveType11((SDKMESH_PRIMITIVE_TYPE)pSubset->PrimitiveType);
 		pd3dImmediateContext->IASetPrimitiveTopology(PrimType);
 
-		//auto pDiffuseRV = g_ball.GetMaterial(pSubset->MaterialID)->pDiffuseRV11;
-		//g_ball->SetResource(pDiffuseRV);
-
-		g_LightingPass->GetPassByIndex(0)->Apply(0, pd3dImmediateContext);
 		pd3dImmediateContext->DrawIndexed((UINT)pSubset->IndexCount, 0, (UINT)pSubset->VertexStart);
 	}
 
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
 	g_HUD.OnRender(fElapsedTime);
 	g_SampleUI.OnRender(fElapsedTime);
-	//RenderText();
+	g_pTxtHelper->Begin();
+	g_pTxtHelper->SetInsertionPos( 2, 0 );
+	g_pTxtHelper->SetForegroundColor( Colors::Yellow );
+	g_pTxtHelper->DrawTextLine( DXUTGetFrameStats( DXUTIsVsyncEnabled() ) );
+	g_pTxtHelper->DrawTextLine( DXUTGetDeviceStats() );
+	g_pTxtHelper->End();
 	DXUT_EndPerfEvent();
 }
 
@@ -396,13 +391,13 @@ void InitApp()
 
 	iY += 50;
 	WCHAR str[MAX_PATH];
-	swprintf_s(str, MAX_PATH, L"Light vert: %f", g_lightDirVert);
+	swprintf_s(str, MAX_PATH, L"Light vert: %d", g_lightDirVert);
 	g_HUD.AddStatic(IDC_LIGHTVERT_STATIC, str, 25, iY += 24, 135, 22);
-	g_HUD.AddSlider(IDC_LIGHTVERT, 15, iY += 24, 135, 22, 0, 90, ( int )( g_lightDirVert * 90.0f ) );
+	g_HUD.AddSlider(IDC_LIGHTVERT, 15, iY += 24, 135, 22, 0, 180, g_lightDirVert );
 
-	swprintf_s(str, MAX_PATH, L"Light hor: %f", g_lightDirHor);
+	swprintf_s(str, MAX_PATH, L"Light hor: %d", g_lightDirHor);
 	g_HUD.AddStatic(IDC_LIGHTHOR_STATIC, str, 25, iY += 24, 135, 22);
-	g_HUD.AddSlider(IDC_LIGHTHOR, 15, iY += 24, 135, 22, 0, 180, (int)(g_lightDirHor * 180.0f));
+	g_HUD.AddSlider(IDC_LIGHTHOR, 15, iY += 24, 135, 22, 0, 180, g_lightDirHor );
 }
 
 
@@ -417,15 +412,15 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			break;
 		case IDC_LIGHTVERT:
 		{
-			g_lightDirVert = ( float )g_HUD.GetSlider(IDC_LIGHTVERT)->GetValue();
-			swprintf_s(str, MAX_PATH, L"Light vert: %f", g_lightDirVert);
+			g_lightDirVert = g_HUD.GetSlider(IDC_LIGHTVERT)->GetValue();
+			swprintf_s(str, MAX_PATH, L"Light vert: %d", g_lightDirVert);
 			g_HUD.GetStatic(IDC_LIGHTVERT_STATIC)->SetText(str);
 			break;
 		}
 		case IDC_LIGHTHOR:
 		{
-			g_lightDirHor = ( float )g_HUD.GetSlider(IDC_LIGHTHOR)->GetValue();
-			swprintf_s(str, MAX_PATH, L"Light hor: %f", g_lightDirHor);
+			g_lightDirHor = g_HUD.GetSlider(IDC_LIGHTHOR)->GetValue();
+			swprintf_s(str, MAX_PATH, L"Light hor: %d", g_lightDirHor);
 			g_HUD.GetStatic(IDC_LIGHTHOR_STATIC)->SetText(str);
 			break;
 		}
