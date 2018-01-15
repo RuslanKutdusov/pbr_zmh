@@ -32,22 +32,32 @@ CDXUTSDKMesh                        g_ball;
 ID3DX11EffectTechnique*              g_LightingPass = nullptr;
 ID3DX11EffectMatrixVariable*         g_viewProjMatrixParam = nullptr;
 ID3DX11EffectMatrixVariable*         g_WorldMatrixParam = nullptr;
+ID3DX11EffectVectorVariable*         g_viewPosParam = nullptr;
 ID3DX11EffectVectorVariable*         g_LightDirParam = nullptr;
+ID3DX11EffectScalarVariable*		g_metalnessParam = nullptr;
+ID3DX11EffectScalarVariable*		g_roughnessParam = nullptr;
 
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
+float g_metalness = 1.0f;
+float g_roughness = 0.5f;
 
 
 //--------------------------------------------------------------------------------------
 // UI control IDs
 //--------------------------------------------------------------------------------------
-#define IDC_STATIC                 -1
-#define IDC_CHANGEDEVICE            1
-#define IDC_LIGHTVERT_STATIC		2
-#define IDC_LIGHTVERT				3
-#define IDC_LIGHTHOR_STATIC			4
-#define IDC_LIGHTHOR				5
-
+enum IDC
+{
+	IDC_CHANGEDEVICE = 1,
+	IDC_LIGHTVERT_STATIC,
+	IDC_LIGHTVERT,
+	IDC_LIGHTHOR_STATIC,
+	IDC_LIGHTHOR,
+	IDC_METALNESS_STATIC,
+	IDC_METALNESS,
+	IDC_ROUGHNESS_STATIC,
+	IDC_ROUGHNESS,
+};
 
 //
 void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext);
@@ -115,7 +125,10 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	// Obtain the parameter handles
 	g_viewProjMatrixParam = g_pbrEffect->GetVariableByName("ViewProjMatrix")->AsMatrix();
 	g_WorldMatrixParam = g_pbrEffect->GetVariableByName("WorldMatrix")->AsMatrix();
+	g_viewPosParam = g_pbrEffect->GetVariableByName( "ViewPos" )->AsVector();
 	g_LightDirParam = g_pbrEffect->GetVariableByName("LightDir")->AsVector();
+	g_metalnessParam = g_pbrEffect->GetVariableByName( "Metalness" )->AsScalar();
+	g_roughnessParam = g_pbrEffect->GetVariableByName( "Roughness" )->AsScalar();
 
 	const D3D11_INPUT_ELEMENT_DESC elementsDesc[] =
 	{
@@ -199,6 +212,11 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	XMMATRIX mProj = g_Camera.GetProjMatrix();
 	XMMATRIX mView = g_Camera.GetViewMatrix();
+	XMMATRIX viewProj = XMMatrixMultiply( mView, mProj );
+	g_viewProjMatrixParam->SetMatrix( ( float* )&viewProj );
+
+	XMVECTOR viewPos = g_Camera.GetEyePt();
+	g_viewPosParam->SetFloatVector( ( float* )&viewPos );
 
 	float lightDirVert = ToRad( ( float )g_lightDirVert );
 	float lightDirHor = ToRad( ( float )g_lightDirHor );
@@ -207,9 +225,6 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	lightDir[ 1 ] = cos( lightDirVert );
 	lightDir[ 2 ] = sin( lightDirVert ) * cos( lightDirHor );
 	g_LightDirParam->SetFloatVector(lightDir);
-
-	XMMATRIX viewProj = XMMatrixMultiply(mView, mProj);
-	g_viewProjMatrixParam->SetMatrix((float*)&viewProj);
 
 	//
 	pd3dImmediateContext->IASetInputLayout(g_inputLayout);
@@ -222,6 +237,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	XMMATRIX worldMatrix = XMMatrixIdentity();
 	g_WorldMatrixParam->SetMatrix((float*)&worldMatrix);
+	g_metalnessParam->SetFloat( g_metalness );
+	g_roughnessParam->SetFloat( g_roughness );
 	g_LightingPass->GetPassByIndex( 0 )->Apply( 0, pd3dImmediateContext );
 
 	for (UINT subset = 0; subset < g_ball.GetNumSubsets(0); ++subset)
@@ -398,6 +415,14 @@ void InitApp()
 	swprintf_s(str, MAX_PATH, L"Light hor: %d", g_lightDirHor);
 	g_HUD.AddStatic(IDC_LIGHTHOR_STATIC, str, 25, iY += 24, 135, 22);
 	g_HUD.AddSlider(IDC_LIGHTHOR, 15, iY += 24, 135, 22, 0, 180, g_lightDirHor );
+
+	swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_metalness );
+	g_HUD.AddStatic( IDC_METALNESS_STATIC, str, 25, iY += 24, 135, 22 );
+	g_HUD.AddSlider( IDC_METALNESS, 15, iY += 24, 135, 22, 0, 100, ( int )( g_metalness * 100.0f ) );
+
+	swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
+	g_HUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 25, iY += 24, 135, 22 );
+	g_HUD.AddSlider( IDC_ROUGHNESS, 15, iY += 24, 135, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
 }
 
 
@@ -422,6 +447,20 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_lightDirHor = g_HUD.GetSlider(IDC_LIGHTHOR)->GetValue();
 			swprintf_s(str, MAX_PATH, L"Light hor: %d", g_lightDirHor);
 			g_HUD.GetStatic(IDC_LIGHTHOR_STATIC)->SetText(str);
+			break;
+		}
+		case IDC_METALNESS:
+		{
+			g_metalness = g_HUD.GetSlider( IDC_METALNESS )->GetValue() / 100.0f;
+			swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_metalness );
+			g_HUD.GetStatic( IDC_METALNESS_STATIC )->SetText( str );
+			break;
+		}
+		case IDC_ROUGHNESS:
+		{
+			g_roughness = g_HUD.GetSlider( IDC_ROUGHNESS )->GetValue() / 100.0f;
+			swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
+			g_HUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
 			break;
 		}
 	}
