@@ -30,11 +30,18 @@ ID3D11DepthStencilState*			g_depthStencilState = nullptr;
 ID3D11RasterizerState*				g_rasterizerState = nullptr;
 SphereRenderer						g_sphereRenderer;
 SkyRenderer							g_skyRenderer;
+PostProcess							g_postProcess;
+
+// hdr stuff
+ID3D11Texture2D*					g_hdrBackbufferTexture;
+ID3D11RenderTargetView*				g_hdrBackbufferRTV;
+ID3D11ShaderResourceView*			g_hdrBackbufferSRV;
 
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
 float g_metalness = 1.0f;
 float g_roughness = 0.5f;
+float g_exposure = 1.0f;
 
 
 //--------------------------------------------------------------------------------------
@@ -51,6 +58,8 @@ enum IDC
 	IDC_METALNESS,
 	IDC_ROUGHNESS_STATIC,
 	IDC_ROUGHNESS,
+	IDC_EXPOSURE_STATIC,
+	IDC_EXPOSURE,
 };
 
 //
@@ -113,6 +122,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 
 	g_sphereRenderer.OnD3D11CreateDevice( pd3dDevice );
 	g_skyRenderer.OnD3D11CreateDevice( pd3dDevice );
+	g_postProcess.OnD3D11CreateDevice( pd3dDevice );
 
 	D3D11_RASTERIZER_DESC rasterDesc;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
@@ -152,6 +162,37 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 {
 	HRESULT hr = S_OK;
 
+	{
+
+		D3D11_TEXTURE2D_DESC texDesc;
+		ZeroMemory( &texDesc, sizeof( D3D11_TEXTURE2D_DESC ) );
+		texDesc.ArraySize = 1;
+		texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+		texDesc.Usage = D3D11_USAGE_DEFAULT;
+		texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		texDesc.Width = pBackBufferSurfaceDesc->Width;
+		texDesc.Height = pBackBufferSurfaceDesc->Height;
+		texDesc.MipLevels = 1;
+		texDesc.SampleDesc.Count = 1;
+		V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &g_hdrBackbufferTexture ) );
+		DXUT_SetDebugName( g_hdrBackbufferTexture, "HdrBackbufferTexture" );
+
+		// Create the render target view
+		D3D11_RENDER_TARGET_VIEW_DESC rtDesc;
+		rtDesc.Format = texDesc.Format;
+		rtDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+		rtDesc.Texture2D.MipSlice = 0;
+		V_RETURN( pd3dDevice->CreateRenderTargetView( g_hdrBackbufferTexture, &rtDesc, &g_hdrBackbufferRTV ) );
+		DXUT_SetDebugName( g_hdrBackbufferRTV, "HdrBackbufferRTV" );
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = texDesc.Format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		V_RETURN( pd3dDevice->CreateShaderResourceView( g_hdrBackbufferTexture, &srvDesc, &g_hdrBackbufferSRV ) );
+	}
+
 	V_RETURN(g_DialogResourceManager.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
 	V_RETURN(g_D3DSettingsDlg.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
 
@@ -186,6 +227,9 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext,
                                   double fTime, float fElapsedTime, void* pUserContext )
 {
+	auto pRTV = DXUTGetD3D11RenderTargetView();
+	auto pDSV = DXUTGetD3D11DepthStencilView();
+
 	// If the settings dialog is being shown, then render it instead of rendering the app's scene
 	if (g_D3DSettingsDlg.IsActive())
 	{
@@ -193,10 +237,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		return;
 	}
 
-	auto pRTV = DXUTGetD3D11RenderTargetView();
-	pd3dImmediateContext->ClearRenderTargetView(pRTV, Colors::MidnightBlue);
-	auto pDSV = DXUTGetD3D11DepthStencilView();
-	pd3dImmediateContext->ClearDepthStencilView(pDSV, D3D11_CLEAR_DEPTH, 1.0, 0);
+	pd3dImmediateContext->OMSetRenderTargets( 1, &g_hdrBackbufferRTV, pDSV );
+	pd3dImmediateContext->ClearRenderTargetView( g_hdrBackbufferRTV, Colors::Black );
+	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
 
 	pd3dImmediateContext->RSSetState( g_rasterizerState );
 	pd3dImmediateContext->OMSetDepthStencilState( g_depthStencilState, 0 );
@@ -225,6 +268,13 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	g_skyRenderer.Render( pd3dImmediateContext );
 	g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, pd3dImmediateContext );
 
+	//
+	pd3dImmediateContext->OMSetRenderTargets( 1, &pRTV, pDSV );
+	pd3dImmediateContext->ClearRenderTargetView( pRTV, Colors::MidnightBlue );
+	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
+
+	g_postProcess.Render( pd3dImmediateContext, g_hdrBackbufferSRV, g_exposure );
+
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
 	g_HUD.OnRender(fElapsedTime);
 	g_SampleUI.OnRender(fElapsedTime);
@@ -244,6 +294,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 {
 	g_DialogResourceManager.OnD3D11ReleasingSwapChain();
+	SAFE_RELEASE( g_hdrBackbufferTexture );
+	SAFE_RELEASE( g_hdrBackbufferRTV );
+	SAFE_RELEASE( g_hdrBackbufferSRV );
 }
 
 
@@ -259,9 +312,14 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_globalParamsBuf );
 	SAFE_RELEASE( g_rasterizerState );
 	SAFE_RELEASE( g_depthStencilState );
+	SAFE_RELEASE( g_hdrBackbufferTexture );
+	SAFE_RELEASE( g_hdrBackbufferRTV );
+	SAFE_RELEASE( g_hdrBackbufferSRV );
+
 
 	g_sphereRenderer.OnD3D11DestroyDevice();
 	g_skyRenderer.OnD3D11DestroyDevice();
+	g_postProcess.OnD3D11DestroyDevice();
 }
 
 
@@ -398,6 +456,10 @@ void InitApp()
 	swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
 	g_HUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 25, iY += 24, 135, 22 );
 	g_HUD.AddSlider( IDC_ROUGHNESS, 15, iY += 24, 135, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
+
+	swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
+	g_HUD.AddStatic( IDC_EXPOSURE_STATIC, str, 25, iY += 24, 135, 22 );
+	g_HUD.AddSlider( IDC_EXPOSURE, 15, iY += 24, 135, 22, 0, 100, ( int )( g_exposure * 20.0f ) );
 }
 
 
@@ -436,6 +498,13 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_roughness = g_HUD.GetSlider( IDC_ROUGHNESS )->GetValue() / 100.0f;
 			swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
 			g_HUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
+			break;
+		}
+		case IDC_EXPOSURE:
+		{
+			g_exposure = g_HUD.GetSlider( IDC_EXPOSURE )->GetValue() / 20.0f;
+			swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
+			g_HUD.GetStatic( IDC_EXPOSURE_STATIC )->SetText( str );
 			break;
 		}
 	}

@@ -4,6 +4,7 @@
     <ClCompile Include="pbr_zmh.cpp" />
     <ClCompile Include="SphereRenderer.cpp" />
     <ClCompile Include="SkyRenderer.cpp" />
+    <ClCompile Include="PostProcess.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
@@ -30,6 +31,7 @@
     <ClInclude Include="SphereRenderer.h" />
     <ClInclude Include="Precompiled.h" />
     <ClInclude Include="SkyRenderer.h" />
+    <ClInclude Include="PostProcess.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="shaders\pbr.fx">

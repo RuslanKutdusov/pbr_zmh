@@ -26,5 +26,5 @@ VSOutput vs_main( SdkMeshVertex input )
 
 float4 ps_main( VSOutput input ) : SV_Target
 {
-	return Texture.Sample( Sampler, input.uv ) / 100.0f;
+	return Texture.Sample( Sampler, input.uv );
 }

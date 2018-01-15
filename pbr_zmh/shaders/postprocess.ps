@@ -1,0 +1,42 @@
+cbuffer Params : register( b1 )
+{
+	float Exposure;
+};
+
+Texture2D HDRTexture : register( t0 );
+//SamplerState Sampler : register( s0 );
+
+const static float A = 0.15;
+const static float B = 0.50;
+const static float C = 0.10;
+const static float D = 0.20;
+const static float E = 0.02;
+const static float F = 0.30;
+const static float W = 11.2;
+
+float3 U2Tonemap( float3 x )
+{
+    return float3( ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F );
+}
+
+float3 Tonemap( float3 LinearColor )
+{
+	// HPD-Hable
+	half ExposureBias = 2.0;
+
+	float3 curr = ExposureBias * U2Tonemap( LinearColor );
+
+	float3 whiteScale = 1.0 / U2Tonemap( (float3)W );
+	float3 Color = curr * whiteScale;
+
+	return Color;
+}
+
+
+float4 Tonemap( float4 pixelPos : SV_Position ) : SV_Target
+{
+	float3 hdr = HDRTexture.Load( int3( pixelPos.xy, 0 ) ).rgb * Exposure;
+	float3 ldr = Tonemap( hdr );
+	
+	return float4( ldr, 1.0f );
+}
