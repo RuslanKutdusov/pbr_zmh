@@ -27,7 +27,7 @@ CDXUTTextHelper*                    g_pTxtHelper = nullptr;
 
 ID3DX11Effect*                      g_pbrEffect = nullptr;
 ID3D11InputLayout*                  g_inputLayout = nullptr;
-CDXUTSDKMesh                        g_ball;
+CDXUTSDKMesh                        g_sphereMesh;
 
 ID3DX11EffectTechnique*              g_LightingPass = nullptr;
 ID3DX11EffectMatrixVariable*         g_viewProjMatrixParam = nullptr;
@@ -145,7 +145,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 		PassDesc.IAInputSignatureSize, &g_inputLayout));
 
 	// Load meshes
-	V_RETURN(g_ball.Create(pd3dDevice, L"Misc\\ball.sdkmesh"));
+	V_RETURN(g_sphereMesh.Create(pd3dDevice, L"Misc\\sphere.sdkmesh"));
 
 	// Setup the camera's view parameters
 	static const XMVECTORF32 s_vEyeStart = { 0.f, 0.f, -5.f, 0.f };
@@ -229,11 +229,11 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	//
 	pd3dImmediateContext->IASetInputLayout(g_inputLayout);
 
-	ID3D11Buffer* pVB = g_ball.GetVB11(0, 0);
-	UINT Strides = (UINT)g_ball.GetVertexStride(0, 0);
+	ID3D11Buffer* pVB = g_sphereMesh.GetVB11(0, 0);
+	UINT Strides = (UINT)g_sphereMesh.GetVertexStride(0, 0);
 	UINT Offsets = 0;
 	pd3dImmediateContext->IASetVertexBuffers(0, 1, &pVB, &Strides, &Offsets);
-	pd3dImmediateContext->IASetIndexBuffer(g_ball.GetIB11(0), g_ball.GetIBFormat11(0), 0);
+	pd3dImmediateContext->IASetIndexBuffer(g_sphereMesh.GetIB11(0), g_sphereMesh.GetIBFormat11(0), 0);
 
 	XMMATRIX worldMatrix = XMMatrixIdentity();
 	g_WorldMatrixParam->SetMatrix((float*)&worldMatrix);
@@ -241,10 +241,10 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	g_roughnessParam->SetFloat( g_roughness );
 	g_LightingPass->GetPassByIndex( 0 )->Apply( 0, pd3dImmediateContext );
 
-	for (UINT subset = 0; subset < g_ball.GetNumSubsets(0); ++subset)
+	for (UINT subset = 0; subset < g_sphereMesh.GetNumSubsets(0); ++subset)
 	{
 		// Get the subset
-		auto pSubset = g_ball.GetSubset(0, subset);
+		auto pSubset = g_sphereMesh.GetSubset(0, subset);
 
 		auto PrimType = CDXUTSDKMesh::GetPrimitiveType11((SDKMESH_PRIMITIVE_TYPE)pSubset->PrimitiveType);
 		pd3dImmediateContext->IASetPrimitiveTopology(PrimType);
@@ -286,7 +286,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE(g_pbrEffect);
 	SAFE_RELEASE(g_inputLayout);
 
-	g_ball.Destroy();
+	g_sphereMesh.Destroy();
 }
 
 
