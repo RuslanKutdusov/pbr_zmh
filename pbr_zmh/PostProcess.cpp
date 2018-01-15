@@ -116,4 +116,5 @@ void PostProcess::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_tonemapPs );
 	SAFE_RELEASE( m_samperState );
 	SAFE_RELEASE( m_depthStencilState );
+	SAFE_RELEASE( m_paramsBuf );
 }

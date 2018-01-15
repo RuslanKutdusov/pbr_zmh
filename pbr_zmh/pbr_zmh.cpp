@@ -15,10 +15,21 @@ struct GlobalParams
 };
 
 
+enum SCENE_TYPE
+{
+	SCENE_ONE_SPHERE = 0,
+	SCENE_MULTIPLE_SPHERES,
+	//SCENE_SPONZA
+
+	SCENE_TYPE_COUNT
+};
+
+
 //--------------------------------------------------------------------------------------
 // Global variables
 //--------------------------------------------------------------------------------------
-CModelViewerCamera                  g_Camera;               // A model viewing camera
+CModelViewerCamera                  g_modelViewerCamera;     // A model viewing camera
+CFirstPersonCamera					g_firstPersonCamera;
 CDXUTDialogResourceManager          g_DialogResourceManager; // manager for shared resources of dialogs
 CD3DSettingsDlg                     g_D3DSettingsDlg;       // Device settings dialog
 CDXUTDialog                         g_HUD;                  // manages the 3D UI
@@ -42,6 +53,8 @@ int g_lightDirHor = 130;
 float g_metalness = 1.0f;
 float g_roughness = 0.5f;
 float g_exposure = 1.0f;
+bool g_drawSky = true;
+SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
 
 
 //--------------------------------------------------------------------------------------
@@ -60,7 +73,10 @@ enum IDC
 	IDC_ROUGHNESS,
 	IDC_EXPOSURE_STATIC,
 	IDC_EXPOSURE,
+	IDC_DRAW_SKY,
+	IDC_SCENE_TYPE,
 };
+
 
 //
 void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext);
@@ -116,9 +132,11 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	DXUT_SetDebugName( g_globalParamsBuf, "GlobalParams" );
 
 	// Setup the camera's view parameters
-	static const XMVECTORF32 s_vEyeStart = { 0.f, 0.f, -5.f, 0.f };
-	static const XMVECTORF32 s_vAtStart = { 0.f, 0.f, 0.f, 0.f };
-	g_Camera.SetViewParams(s_vEyeStart, s_vAtStart);
+	XMVECTORF32 s_vEyeStart = { 0.f, 0.f, -5.f, 0.f };
+	XMVECTORF32 s_vAtStart = { 0.f, 0.f, 0.f, 0.f };
+	g_modelViewerCamera.SetViewParams( s_vEyeStart, s_vAtStart );
+	s_vEyeStart = { 0.f, 5.f, -15.f, 0.f };
+	g_firstPersonCamera.SetViewParams( s_vEyeStart, s_vAtStart );
 
 	g_sphereRenderer.OnD3D11CreateDevice( pd3dDevice );
 	g_skyRenderer.OnD3D11CreateDevice( pd3dDevice );
@@ -198,9 +216,10 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 
 	// Setup the camera's projection parameters
 	float fAspectRatio = pBackBufferSurfaceDesc->Width / (FLOAT)pBackBufferSurfaceDesc->Height;
-	g_Camera.SetProjParams(53.4f * (XM_PI / 180.0f), fAspectRatio, 1.0f, 30000.0f);
-	g_Camera.SetWindow(pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height);
-	g_Camera.SetButtonMasks(0, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON | MOUSE_LEFT_BUTTON);
+	g_modelViewerCamera.SetProjParams( 53.4f * ( XM_PI / 180.0f ), fAspectRatio, 0.1f, 3000.0f );
+	g_modelViewerCamera.SetWindow( pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height );
+	g_modelViewerCamera.SetButtonMasks( 0, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON | MOUSE_LEFT_BUTTON );
+	g_firstPersonCamera.SetProjParams( 53.4f * ( XM_PI / 180.0f ), fAspectRatio, 0.1f, 3000.0f );
 
 	g_HUD.SetLocation(pBackBufferSurfaceDesc->Width - 170, 0);
 	g_HUD.SetSize(170, 170);
@@ -217,7 +236,10 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
 	// Update the camera's position based on user input 
-	g_Camera.FrameMove(fElapsedTime);
+	if( g_sceneType == SCENE_ONE_SPHERE )
+		g_modelViewerCamera.FrameMove( fElapsedTime );
+	else
+		g_firstPersonCamera.FrameMove( fElapsedTime );
 }
 
 
@@ -249,9 +271,11 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		D3D11_MAPPED_SUBRESOURCE mappedSubres;
 		pd3dImmediateContext->Map( g_globalParamsBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
 
+		CBaseCamera* currentCamera = g_sceneType == SCENE_ONE_SPHERE ? ( CBaseCamera* )&g_modelViewerCamera : ( CBaseCamera* )&g_firstPersonCamera;
+
 		GlobalParams* globalParams = ( GlobalParams* )mappedSubres.pData;
-		globalParams->ViewProjMatrix = XMMatrixMultiply( g_Camera.GetViewMatrix(), g_Camera.GetProjMatrix() );
-		globalParams->ViewPos = g_Camera.GetEyePt();
+		globalParams->ViewProjMatrix = XMMatrixMultiply( currentCamera->GetViewMatrix(), currentCamera->GetProjMatrix() );
+		globalParams->ViewPos = currentCamera->GetEyePt();
 		float lightDirVert = ToRad( ( float )g_lightDirVert );
 		float lightDirHor = ToRad( ( float )g_lightDirHor );
 		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
@@ -265,8 +289,26 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 
 	//
-	g_skyRenderer.Render( pd3dImmediateContext );
-	g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, pd3dImmediateContext );
+	if( g_drawSky )
+		g_skyRenderer.Render( pd3dImmediateContext );
+
+	if( g_sceneType == SCENE_ONE_SPHERE )
+	{
+		g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, pd3dImmediateContext );
+	} 
+	else if( g_sceneType == SCENE_MULTIPLE_SPHERES )
+	{
+		for( int x = -5; x <= 5; x++ )
+		{
+			for( int z = -5; z <= 5; z++ )
+			{
+				float metalness = ( x + 5 ) / 10.0f;
+				float roughness = ( z + 5 ) / 10.0f;
+				XMMATRIX tranlation = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
+				g_sphereRenderer.Render( tranlation, metalness, roughness, pd3dImmediateContext );
+			}
+		}
+	}
 
 	//
 	pd3dImmediateContext->OMSetRenderTargets( 1, &pRTV, pDSV );
@@ -350,7 +392,10 @@ LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
 		return 0;
 
 	// Pass all remaining windows messages to camera so it can respond to user input
-	g_Camera.HandleMessages(hWnd, uMsg, wParam, lParam);
+	if( g_sceneType == SCENE_ONE_SPHERE )
+		g_modelViewerCamera.HandleMessages( hWnd, uMsg, wParam, lParam );
+	else 
+		g_firstPersonCamera.HandleMessages( hWnd, uMsg, wParam, lParam );
 
 	return 0;
 }
@@ -449,6 +494,19 @@ void InitApp()
 	g_HUD.AddStatic(IDC_LIGHTHOR_STATIC, str, 25, iY += 24, 135, 22);
 	g_HUD.AddSlider(IDC_LIGHTHOR, 15, iY += 24, 135, 22, 0, 180, g_lightDirHor );
 
+	swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
+	g_HUD.AddStatic( IDC_EXPOSURE_STATIC, str, 25, iY += 24, 135, 22 );
+	g_HUD.AddSlider( IDC_EXPOSURE, 15, iY += 24, 135, 22, 0, 100, ( int )( g_exposure * 20.0f ) );
+
+	swprintf_s( str, MAX_PATH, L"Draw sky" );
+	g_HUD.AddCheckBox( IDC_DRAW_SKY, str, 25, iY += 24, 135, 22, g_drawSky );
+
+	CDXUTComboBox* comboBox;
+	g_HUD.AddComboBox( IDC_SCENE_TYPE, 25, iY += 24, 135, 22, 0, false, &comboBox );
+	comboBox->AddItem( L"One sphere", ULongToPtr( SCENE_ONE_SPHERE ) );
+	comboBox->AddItem( L"Multiple spheres", ULongToPtr( SCENE_MULTIPLE_SPHERES ) );
+	//comboBox->AddItem( L"Sponza", ULongToPtr( SCENE_SPONZA ) );
+
 	swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_metalness );
 	g_HUD.AddStatic( IDC_METALNESS_STATIC, str, 25, iY += 24, 135, 22 );
 	g_HUD.AddSlider( IDC_METALNESS, 15, iY += 24, 135, 22, 0, 100, ( int )( g_metalness * 100.0f ) );
@@ -456,10 +514,6 @@ void InitApp()
 	swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
 	g_HUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 25, iY += 24, 135, 22 );
 	g_HUD.AddSlider( IDC_ROUGHNESS, 15, iY += 24, 135, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
-
-	swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
-	g_HUD.AddStatic( IDC_EXPOSURE_STATIC, str, 25, iY += 24, 135, 22 );
-	g_HUD.AddSlider( IDC_EXPOSURE, 15, iY += 24, 135, 22, 0, 100, ( int )( g_exposure * 20.0f ) );
 }
 
 
@@ -505,6 +559,16 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_exposure = g_HUD.GetSlider( IDC_EXPOSURE )->GetValue() / 20.0f;
 			swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
 			g_HUD.GetStatic( IDC_EXPOSURE_STATIC )->SetText( str );
+			break;
+		}
+		case IDC_DRAW_SKY:
+		{
+			g_drawSky = g_HUD.GetCheckBox( IDC_DRAW_SKY )->GetChecked();
+			break;
+		}
+		case IDC_SCENE_TYPE:
+		{
+			g_sceneType = ( SCENE_TYPE )PtrToUlong( g_HUD.GetComboBox( IDC_SCENE_TYPE )->GetSelectedData() );
 			break;
 		}
 	}
