@@ -11,9 +11,6 @@
     <Filter Include="ResourceFiles">
       <UniqueIdentifier>{0f86a617-39f5-4b56-b21d-9952decd18e2}</UniqueIdentifier>
     </Filter>
-    <Filter Include="shaders">
-      <UniqueIdentifier>{535960b6-5f99-4d3c-904f-df39d35f83c5}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\DXUT\Optional\directx.ico">
@@ -34,10 +31,5 @@
     <ClInclude Include="SkyRenderer.h" />
     <ClInclude Include="PostProcess.h" />
     <ClInclude Include="Helpers.h" />
-  </ItemGroup>
-  <ItemGroup>
-    <FxCompile Include="shaders\pbr.fx">
-      <Filter>shaders</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>
