@@ -7,6 +7,7 @@ public:
 	SkyRenderer();
 
 	HRESULT OnD3D11CreateDevice( ID3D11Device* pd3dDevice );
+	void	BakeCubemap( ID3D11DeviceContext* pd3dImmediateContext );
 	void    Render( ID3D11DeviceContext* pd3dImmediateContext );
 	void    OnD3D11DestroyDevice();
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
@@ -34,4 +35,5 @@ public:
 		UINT padding[ 3 ];
 	};
 	void Draw( ID3D11DeviceContext* pd3dImmediateContext, UINT numInstances, InstanceParams& params );
+	void ApplyResources( ID3D11DeviceContext* pd3dImmediateContext );
 };

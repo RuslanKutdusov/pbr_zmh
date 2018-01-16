@@ -66,7 +66,7 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 }
 
 
-void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
+void SkyRenderer::ApplyResources( ID3D11DeviceContext* pd3dImmediateContext )
 {
 	pd3dImmediateContext->IASetInputLayout( m_inputLayout );
 
@@ -83,49 +83,63 @@ void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
 	pd3dImmediateContext->VSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->PSSetConstantBuffers( 1, 1, &m_instanceBuf );
+}
 
-	// bake cubemap
+
+void SkyRenderer::BakeCubemap( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	ApplyResources( pd3dImmediateContext );
+
+	// save state
+	ID3D11RenderTargetView* savedRTV;
+	ID3D11DepthStencilView* savedDSV;
+	D3D11_VIEWPORT savedViewport;
+	UINT numViewports = 1;
+	pd3dImmediateContext->RSGetViewports( &numViewports, &savedViewport );
+	pd3dImmediateContext->OMGetRenderTargets( 1, &savedRTV, &savedDSV );
+
+	InstanceParams params;
+	params.Bake = ~0u;
+	for( int i = 0; i < 6; i++ )
 	{
-		ID3D11RenderTargetView* savedRTV;
-		ID3D11DepthStencilView* savedDSV;
-		D3D11_VIEWPORT savedViewport;
-		UINT numViewports = 1;
-		pd3dImmediateContext->RSGetViewports( &numViewports, &savedViewport );
-		pd3dImmediateContext->OMGetRenderTargets( 1, &savedRTV, &savedDSV );
-
-		InstanceParams params;
-		params.Bake = ~0u;
-		for( int i = 0; i < 6; i++ )
-		{
-			XMMATRIX view = DXUTGetCubeMapViewMatrix( i );
-			XMMATRIX proj = XMMatrixPerspectiveFovLH( XM_PI / 2.0f, 1.0f, 1.0f, 5000.0f );
-			params.BakeViewProj[ i ] = XMMatrixMultiply( view, proj );
-		}
-
-		D3D11_VIEWPORT viewport;
-		viewport.TopLeftX = 0;
-		viewport.TopLeftY = 0;
-		viewport.Width = CUBEMAP_RESOLUTION;
-		viewport.Height = CUBEMAP_RESOLUTION;
-		viewport.MinDepth = 0.0f;
-		viewport.MaxDepth = 1.0f;
-
-		pd3dImmediateContext->OMSetRenderTargets( 1, &m_cubeMapRTV, nullptr );
-		pd3dImmediateContext->RSSetViewports( 1, &viewport );
-		pd3dImmediateContext->ClearRenderTargetView( m_cubeMapRTV, Colors::Black );
-		Draw( pd3dImmediateContext, 6, params );
-
-		// restore state
-		pd3dImmediateContext->OMSetRenderTargets( 1, &savedRTV, savedDSV );
-		pd3dImmediateContext->RSSetViewports( numViewports, &savedViewport );
-		SAFE_RELEASE( savedRTV );
-		SAFE_RELEASE( savedDSV );
+		XMMATRIX view = DXUTGetCubeMapViewMatrix( i );
+		XMMATRIX proj = XMMatrixPerspectiveFovLH( XM_PI / 2.0f, 1.0f, 1.0f, 5000.0f );
+		params.BakeViewProj[ i ] = XMMatrixMultiply( view, proj );
 	}
+
+	D3D11_VIEWPORT viewport;
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = CUBEMAP_RESOLUTION;
+	viewport.Height = CUBEMAP_RESOLUTION;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+
+	pd3dImmediateContext->OMSetRenderTargets( 1, &m_cubeMapRTV, nullptr );
+	pd3dImmediateContext->RSSetViewports( 1, &viewport );
+	pd3dImmediateContext->ClearRenderTargetView( m_cubeMapRTV, Colors::Black );
+	Draw( pd3dImmediateContext, 6, params );
+
+	// restore state
+	pd3dImmediateContext->OMSetRenderTargets( 1, &savedRTV, savedDSV );
+	pd3dImmediateContext->RSSetViewports( numViewports, &savedViewport );
+	SAFE_RELEASE( savedRTV );
+	SAFE_RELEASE( savedDSV );
+	pd3dImmediateContext->GSSetShader( nullptr, nullptr, 0 );
+	ID3D11Buffer* nullBuffer = nullptr;
+	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &nullBuffer );
+}
+
+
+void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	ApplyResources( pd3dImmediateContext );
 
 	InstanceParams params;
 	params.Bake = 0;
 	Draw( pd3dImmediateContext, 1, params );
 
+	// disable geometry shader
 	pd3dImmediateContext->GSSetShader( nullptr, nullptr, 0 );
 	ID3D11Buffer* nullBuffer = nullptr;
 	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &nullBuffer );

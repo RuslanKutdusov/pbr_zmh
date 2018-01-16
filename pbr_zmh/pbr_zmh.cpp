@@ -320,14 +320,14 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 
 	//
-	if( g_drawSky )
-	{
-		ID3D11ShaderResourceView* environmentMap = nullptr;
-		pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
-		g_skyRenderer.Render( pd3dImmediateContext );
-	}
+	ID3D11ShaderResourceView* environmentMap = nullptr;
+	pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
+	g_skyRenderer.BakeCubemap( pd3dImmediateContext );
 
-	ID3D11ShaderResourceView* environmentMap = g_skyRenderer.GetCubeMapSRV();
+	if( g_drawSky )
+		g_skyRenderer.Render( pd3dImmediateContext );
+
+	environmentMap = g_skyRenderer.GetCubeMapSRV();
 	pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
 
 	if( g_sceneType == SCENE_ONE_SPHERE )
