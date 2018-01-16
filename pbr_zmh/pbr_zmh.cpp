@@ -41,6 +41,8 @@ enum IDC
 	IDC_METALNESS,
 	IDC_ROUGHNESS_STATIC,
 	IDC_ROUGHNESS,
+	IDC_DIRECT_LIGHT,
+	IDC_INDIRECT_LIGHT,
 	IDC_EXPOSURE_STATIC,
 	IDC_EXPOSURE,
 	IDC_DRAW_SKY,
@@ -79,6 +81,8 @@ int g_lightDirVert = 45;
 int g_lightDirHor = 130;
 float g_metalness = 1.0f;
 float g_roughness = 0.5f;
+bool g_directLight = true;
+bool g_indirectLight = true;
 float g_exposure = 1.0f;
 bool g_drawSky = true;
 SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
@@ -328,7 +332,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	if( g_sceneType == SCENE_ONE_SPHERE )
 	{
-		g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, pd3dImmediateContext );
+		g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, g_directLight, g_indirectLight, pd3dImmediateContext );
 	} 
 	else if( g_sceneType == SCENE_MULTIPLE_SPHERES )
 	{
@@ -339,7 +343,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 				float metalness = ( x + 5 ) / 10.0f;
 				float roughness = ( z + 5 ) / 10.0f;
 				XMMATRIX tranlation = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
-				g_sphereRenderer.Render( tranlation, metalness, roughness, pd3dImmediateContext );
+				g_sphereRenderer.Render( tranlation, metalness, roughness, g_directLight, g_indirectLight, pd3dImmediateContext );
 			}
 		}
 	}
@@ -549,6 +553,12 @@ void InitApp()
 	swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
 	g_HUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
 	g_HUD.AddSlider( IDC_ROUGHNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
+
+	swprintf_s( str, MAX_PATH, L"Enable direct light" );
+	g_HUD.AddCheckBox( IDC_DIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_directLight );
+
+	swprintf_s( str, MAX_PATH, L"Enable indirect light" );
+	g_HUD.AddCheckBox( IDC_INDIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_indirectLight );
 }
 
 
@@ -596,6 +606,16 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_roughness = g_HUD.GetSlider( IDC_ROUGHNESS )->GetValue() / 100.0f;
 			swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
 			g_HUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
+			break;
+		}
+		case IDC_DIRECT_LIGHT:
+		{
+			g_directLight = g_HUD.GetCheckBox( IDC_DIRECT_LIGHT )->GetChecked();
+			break;
+		}
+		case IDC_INDIRECT_LIGHT:
+		{
+			g_indirectLight = g_HUD.GetCheckBox( IDC_INDIRECT_LIGHT )->GetChecked();
 			break;
 		}
 		case IDC_EXPOSURE:

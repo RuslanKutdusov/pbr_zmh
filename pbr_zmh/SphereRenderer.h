@@ -7,7 +7,7 @@ public:
 	SphereRenderer();
 
 	HRESULT OnD3D11CreateDevice( ID3D11Device* pd3dDevice );
-	void    Render( const DirectX::XMMATRIX& world, float metalness, float roughness, ID3D11DeviceContext* pd3dImmediateContext );
+	void    Render( const DirectX::XMMATRIX& world, float metalness, float roughness, bool directLight, bool indirectLight, ID3D11DeviceContext* pd3dImmediateContext );
 	void    OnD3D11DestroyDevice();
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 

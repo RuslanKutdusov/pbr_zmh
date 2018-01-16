@@ -8,7 +8,8 @@ struct InstanceParams
 	XMMATRIX WorldMatrix;
 	float Metalness;
 	float Roughness;
-	float padding[ 2 ];
+	UINT DirectLight;
+	UINT IndirectLight;
 };
 
 
@@ -38,7 +39,7 @@ HRESULT SphereRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 }
 
 
-void SphereRenderer::Render( const DirectX::XMMATRIX& world, float metalness, float roughness, ID3D11DeviceContext* pd3dImmediateContext )
+void SphereRenderer::Render( const DirectX::XMMATRIX& world, float metalness, float roughness, bool directLight, bool indirectLight, ID3D11DeviceContext* pd3dImmediateContext )
 {
 	pd3dImmediateContext->IASetInputLayout( m_inputLayout );
 
@@ -56,6 +57,8 @@ void SphereRenderer::Render( const DirectX::XMMATRIX& world, float metalness, fl
 		instanceParams->WorldMatrix = world;
 		instanceParams->Metalness = metalness;
 		instanceParams->Roughness = roughness;
+		instanceParams->DirectLight = directLight;
+		instanceParams->IndirectLight = indirectLight;
 
 		pd3dImmediateContext->Unmap( m_instanceBuf, 0 );
 

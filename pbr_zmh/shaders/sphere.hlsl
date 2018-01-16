@@ -6,6 +6,8 @@ cbuffer InstanceParams : register( b1 )
 	float4x4 WorldMatrix;
 	float Metalness;
 	float Roughness;
+	bool DirectLight;
+	bool IndirectLight;
 };
 
 
@@ -39,9 +41,12 @@ float4 ps_main( VSOutput input ) : SV_Target
 	float3 albedo = 1.0f;
 	float3 lightColor = 1.0f;
 	
-	float3 light = CalcLight( normal, LightDir, view, Metalness, Roughness, albedo ) * lightColor;
-	float3 env = GetEnvironmentLight( normal, view );
+	float3 light = 0;
+	if( DirectLight )
+		light += CalcLight( normal, LightDir, view, Metalness, Roughness, albedo ) * lightColor;
+	if( IndirectLight )
+		light += GetEnvironmentLight( normal, view );
 
-	float4 ret = float4( light + env, 1.0f );
+	float4 ret = float4( light, 1.0f );
 	return ret;
 }
