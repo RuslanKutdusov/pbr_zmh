@@ -30,7 +30,7 @@ VSOutput vs_main( SdkMeshVertex input, uint id : SV_InstanceID )
 {
 	VSOutput output;
 
-	const float scale = 10.0f;
+	const float scale = 100.0f;
 	if( Bake ) 
 		output.pos = mul( float4( input.pos * scale, 1.0f ), BakeViewProj[ id ] );
 	else
