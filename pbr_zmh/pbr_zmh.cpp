@@ -13,6 +13,8 @@ struct GlobalParams
 	XMMATRIX ViewProjMatrix;
 	XMVECTOR ViewPos;
 	XMVECTOR LightDir;
+	UINT FrameIdx;
+	UINT padding[ 3 ];
 };
 
 
@@ -86,6 +88,7 @@ bool g_indirectLight = true;
 float g_exposure = 1.0f;
 bool g_drawSky = true;
 SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
+UINT g_frameIdx = 0;
 
 const wchar_t* g_skyTextureFiles[] = {
 	L"HDRs\\galileo_cross.dds",
@@ -279,6 +282,8 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext,
                                   double fTime, float fElapsedTime, void* pUserContext )
 {
+	g_frameIdx++;
+
 	auto pRTV = DXUTGetD3D11RenderTargetView();
 	auto pDSV = DXUTGetD3D11DepthStencilView();
 
@@ -310,6 +315,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		float lightDirVert = ToRad( ( float )g_lightDirVert );
 		float lightDirHor = ToRad( ( float )g_lightDirHor );
 		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
+		globalParams->FrameIdx = g_frameIdx;
 
 		pd3dImmediateContext->Unmap( g_globalParamsBuf, 0 );
 

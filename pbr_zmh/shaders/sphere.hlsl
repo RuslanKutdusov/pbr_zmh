@@ -33,7 +33,7 @@ VSOutput vs_main( SdkMeshVertex input )
 }
 
 
-float4 ps_main( VSOutput input ) : SV_Target
+float4 ps_main( VSOutput input, float4 pixelPos : SV_Position ) : SV_Target
 {
 	float3 normal = normalize( input.normal );
 	float3 view = normalize( ViewPos - input.worldPos );
@@ -44,8 +44,10 @@ float4 ps_main( VSOutput input ) : SV_Target
 	float3 light = 0;
 	if( DirectLight )
 		light += CalcLight( normal, LightDir, view, Metalness, Roughness, albedo ) * lightColor;
-	if( IndirectLight )
-		light += GetEnvironmentLight( normal, view );
+	if( IndirectLight ) {
+		uint2 random = RandVector( uint3( (int2)pixelPos.xy, FrameIdx ) ).xy;
+		light += GetEnvironmentLight( normal, view, Metalness, Roughness, albedo, random );
+	}
 
 	float4 ret = float4( light, 1.0f );
 	return ret;

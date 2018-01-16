@@ -2,13 +2,6 @@ static const float DIELECTRIC_SPEC = 0.04f;
 static const float PI = 3.14159265359f;
 static const float INV_PI = 0.31830988618f;
 
-
-//
-float PerceptualRoughnessToRoughness( float perceptualRoughness ) {
-	return perceptualRoughness * perceptualRoughness;
-}
-
-
 // Pow5 uses the same amount of instructions as generic pow(), but has 2 advantages:
 // 1) better instruction pipelining
 // 2) no need to worry about NaNs
@@ -20,10 +13,10 @@ float Pow5( float x ) {
 // Ref: http://jcgt.org/published/0003/02/03/paper.pdf
 float SmithJointGGXVisibilityTerm( float dotNL, float dotNV, float roughness ) {
 	// Approximised version
-	float a = roughness;
+	float a = sqrt( roughness );
 	float lambdaV = dotNL * ( dotNV * ( 1.0f - a ) + a );
 	float lambdaL = dotNV * ( dotNL * ( 1.0f - a ) + a );
-	return 0.5f / ( lambdaV + lambdaL );
+	return 0.5f * rcp( lambdaV + lambdaL );
 }
 
 
@@ -45,14 +38,14 @@ float3 FresnelTerm( float3 F0, float cosA ) {
 }
 
 
-float3 CalcLight( float3 N, float3 L, float3 V, float metalness, float perceptualRoughness, float3 albedo )
+float3 CalcLight( float3 N, float3 L, float3 V, float metalness, float roughness, float3 albedo )
 {
 	float oneMinusReflectivity = ( 1.0f - DIELECTRIC_SPEC ) * ( 1.0f - metalness );
 	float3 specularColor = lerp( DIELECTRIC_SPEC, albedo, metalness );
 	albedo *= oneMinusReflectivity;
 	
 	// https://docs.unity3d.com/Manual/StandardShaderMaterialParameterSmoothness.html
-	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
+	//float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
 	roughness = max(roughness, 1e-06);
 
 	float3 H = normalize( V + L );
@@ -76,7 +69,78 @@ float3 CalcLight( float3 N, float3 L, float3 V, float metalness, float perceptua
 }
 
 
-float3 GetEnvironmentLight( float3 N, float3 V )
+float2 Hammersley( uint Index, uint NumSamples, uint2 Random )
 {
-	return EnvironmentMap.Sample( LinearWrapSampler, -reflect( V, N ) );
+	float E1 = frac( (float)Index / NumSamples + float( Random.x & 0xffff ) / (1<<16) );
+	float E2 = float( reversebits(Index) ^ Random.y ) * 2.3283064365386963e-10;
+	return float2( E1, E2 );
+}
+
+
+float3 ImportanceSampleGGX( float2 E, float Roughness, float3 N )
+{
+	float m = Roughness * Roughness;
+	float m2 = m * m;
+
+	float Phi = 2 * PI * E.x;
+	float CosTheta = sqrt( (1 - E.y) / ( 1 + (m2 - 1) * E.y ) );
+	float SinTheta = sqrt( 1 - CosTheta * CosTheta );
+
+	float3 H;
+	H.x = SinTheta * cos( Phi );
+	H.y = SinTheta * sin( Phi );
+	H.z = CosTheta;
+
+	float3 UpVector = abs(N.z) < 0.999 ? float3(0,0,1) : float3(1,0,0);
+	float3 TangentX = normalize( cross( UpVector, N ) );
+	float3 TangentY = cross( N, TangentX );
+	// Tangent to world space
+	return TangentX * H.x + TangentY * H.y + N * H.z;
+}
+
+
+uint3 RandVector(int3 p)
+{
+	uint3 v = uint3(p);
+	v = v * 1664525u + 1013904223u;
+	v.x += v.y*v.z;
+	v.y += v.z*v.x;
+	v.z += v.x*v.y;
+	v.x += v.y*v.z;
+	v.y += v.z*v.x;
+	v.z += v.x*v.y;
+	return v >> 16u;
+}
+
+
+float3 GetEnvironmentLight( float3 N, float3 V, float metalness, float roughness, float3 albedo, uint2 random )
+{
+	float oneMinusReflectivity = ( 1.0f - DIELECTRIC_SPEC ) * ( 1.0f - metalness );
+	float3 specularColor = lerp( DIELECTRIC_SPEC, albedo, metalness );
+	
+	// https://docs.unity3d.com/Manual/StandardShaderMaterialParameterSmoothness.html
+	//float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
+	roughness = max( roughness, 1e-06 );
+
+	float3 SpecularLighting = 0;
+	const uint NumSamples = 128;
+	for( uint i = 0; i < NumSamples; i++ )
+	{
+		float2 Xi = Hammersley( i, NumSamples, random );
+		float3 H = ImportanceSampleGGX( Xi, roughness, N );
+		float3 L = 2 * dot( V, H ) * H - V;
+		float NoV = saturate( dot( N, V ) );
+		float NoL = saturate( dot( N, L ) );
+		float NoH = saturate( dot( N, H ) );
+		float VoH = saturate( dot( V, H ) );
+		if( NoL > 0 )
+		{
+			float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler , L, 0 ).rgb;
+			float Vis = SmithJointGGXVisibilityTerm( NoL, NoV, roughness );
+			float Fc = pow( 1 - VoH, 5 );
+			float3 F = (1 - Fc) * specularColor + Fc;
+			SpecularLighting += SampleColor * F * ( NoL * Vis * (4 * VoH / NoH) );
+		}
+	}
+	return SpecularLighting / NumSamples;
 }
