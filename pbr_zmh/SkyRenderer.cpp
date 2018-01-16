@@ -17,7 +17,7 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	HRESULT hr;
 	
 	V_RETURN( ReloadShaders( pd3dDevice ) );
-	V_RETURN( m_sphereMesh.Create( pd3dDevice, L"Misc\\skysphere.sdkmesh" ) );
+	V_RETURN( m_sphereMesh.Create( pd3dDevice, L"Misc\\sphere.sdkmesh" ) );
 
 	D3D11_BUFFER_DESC Desc;
 	Desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -28,7 +28,7 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &m_instanceBuf ) );
 	DXUT_SetDebugName( m_instanceBuf, "InstanceParams" );
 
-	V_RETURN( DXUTCreateShaderResourceViewFromFile( pd3dDevice, L"HDRs\\noon_grass_2k.dds", &m_textureSRV ) );
+	V_RETURN( DXUTCreateShaderResourceViewFromFile( pd3dDevice, L"HDRs\\uffizi_cross.dds", &m_textureSRV ) );
 
 	// cube map
 	{

@@ -10,6 +10,7 @@ struct VSOutput
 {
 	float4 pos : SV_Position;
 	float2 uv : TEXCOORD0;
+	float3 normal : NORMAL;
 	uint id : INSTANCE_ID;
 };
 
@@ -17,24 +18,26 @@ struct GSOutput
 {
 	float4 pos : SV_Position;
 	float2 uv : TEXCOORD0;
+	float3 normal : NORMAL;
 	uint rtIdx : SV_RenderTargetArrayIndex;
 };
 
 
-Texture2D Texture : register( t0 );
+TextureCube Texture : register( t0 );
 
 
 VSOutput vs_main( SdkMeshVertex input, uint id : SV_InstanceID )
 {
 	VSOutput output;
 
-	const float scale = 1.0f;
+	const float scale = 10.0f;
 	if( Bake ) 
 		output.pos = mul( float4( input.pos * scale, 1.0f ), BakeViewProj[ id ] );
 	else
 		output.pos = mul( float4( input.pos * scale + ViewPos, 1.0f ), ViewProjMatrix );
 
 	output.uv = input.tex;
+	output.normal = input.norm;
 	output.id = id;
 
 	return output;
@@ -45,10 +48,12 @@ void gs_main( triangle VSOutput input[3], inout TriangleStream< GSOutput > TriSt
 {
 	GSOutput output;
 
-	for( int i = 0; i < 3; i++ )
+	// push in reverse order, cause i am to lasy to create raster state with another cull mode
+	for( int i = 2; i >= 0; i-- )
 	{
 		output.pos = input[ i ].pos;
 		output.uv = input[ i ].uv;
+		output.normal = input[ i ].normal;
 		output.rtIdx = input[ i ].id;
 		TriStream.Append( output );
 	}
@@ -58,5 +63,5 @@ void gs_main( triangle VSOutput input[3], inout TriangleStream< GSOutput > TriSt
 
 float4 ps_main( GSOutput input ) : SV_Target
 {
-	return Texture.Sample( LinearWrapSampler, input.uv );
+	return Texture.Sample( LinearWrapSampler, input.normal );
 }
