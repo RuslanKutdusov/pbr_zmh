@@ -65,6 +65,7 @@ SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
 enum IDC
 {
 	IDC_CHANGEDEVICE = 1,
+	IDC_RELOAD_SHADERS,
 	IDC_LIGHTVERT_STATIC,
 	IDC_LIGHTVERT,
 	IDC_LIGHTHOR_STATIC,
@@ -140,9 +141,9 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	s_vEyeStart = { 0.f, 5.f, -15.f, 0.f };
 	g_firstPersonCamera.SetViewParams( s_vEyeStart, s_vAtStart );
 
-	g_sphereRenderer.OnD3D11CreateDevice( pd3dDevice );
-	g_skyRenderer.OnD3D11CreateDevice( pd3dDevice );
-	g_postProcess.OnD3D11CreateDevice( pd3dDevice );
+	V_RETURN( g_sphereRenderer.OnD3D11CreateDevice( pd3dDevice ) );
+	V_RETURN( g_skyRenderer.OnD3D11CreateDevice( pd3dDevice ) );
+	V_RETURN( g_postProcess.OnD3D11CreateDevice( pd3dDevice ) );
 
 	D3D11_RASTERIZER_DESC rasterDesc;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
@@ -507,6 +508,7 @@ void InitApp()
 	g_HUD.SetCallback(OnGUIEvent);
 	int iY = 10;
 	g_HUD.AddButton(IDC_CHANGEDEVICE, L"Change device (F2)", 0, iY, 170, 23, VK_F2);
+	g_HUD.AddButton(IDC_RELOAD_SHADERS, L"Reload shaders (F3)", 0, iY += 25, 170, 23, VK_F3);
 
 	iY += 50;
 	WCHAR str[MAX_PATH];
@@ -549,6 +551,11 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 	{
 		case IDC_CHANGEDEVICE:
 			g_D3DSettingsDlg.SetActive(!g_D3DSettingsDlg.IsActive()); 
+			break;
+		case IDC_RELOAD_SHADERS:
+			g_skyRenderer.ReloadShaders( DXUTGetD3D11Device() );
+			g_sphereRenderer.ReloadShaders( DXUTGetD3D11Device() );
+			g_postProcess.ReloadShaders( DXUTGetD3D11Device() );
 			break;
 		case IDC_LIGHTVERT:
 		{

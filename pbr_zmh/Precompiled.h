@@ -7,6 +7,7 @@
 #include "SDKmesh.h"
 #include "DXUTRes.h"
 #include "DDSTextureLoader.h"
+#include "Helpers.h"
 
 #include "SphereRenderer.h"
 #include "SkyRenderer.h"

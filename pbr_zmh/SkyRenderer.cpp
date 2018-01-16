@@ -15,37 +15,8 @@ SkyRenderer::SkyRenderer()
 HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 {
 	HRESULT hr;
-	WCHAR str[ MAX_PATH ];
-	V_RETURN( DXUTFindDXSDKMediaFileCch( str, MAX_PATH, L"shaders\\sky.hlsl" ) );
-
-	ID3DBlob* vsBlob = nullptr;
-	V_RETURN( DXUTCompileFromFile( str, nullptr, "vs_main", "vs_5_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &vsBlob ) );
-	V_RETURN( pd3dDevice->CreateVertexShader( vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &m_vs ) );
-	DXUT_SetDebugName( m_vs, "SkyVS" );
-
-	ID3DBlob* gsBlob = nullptr;
-	V_RETURN( DXUTCompileFromFile( str, nullptr, "gs_main", "gs_5_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &gsBlob ) );
-	V_RETURN( pd3dDevice->CreateGeometryShader( gsBlob->GetBufferPointer(), gsBlob->GetBufferSize(), nullptr, &m_gs ) );
-	DXUT_SetDebugName( m_gs, "SkyGS" );
-	SAFE_RELEASE( gsBlob );
-
-	ID3DBlob* psBlob = nullptr;
-	V_RETURN( DXUTCompileFromFile( str, nullptr, "ps_main", "ps_5_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &psBlob ) );
-	V_RETURN( pd3dDevice->CreatePixelShader( psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &m_ps ) );
-	DXUT_SetDebugName( m_ps, "SkyPS" );
-	SAFE_RELEASE( psBlob );
-
-	const D3D11_INPUT_ELEMENT_DESC elementsDesc[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXTURE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	};
-	int iNumElements = sizeof( elementsDesc ) / sizeof( D3D11_INPUT_ELEMENT_DESC );
-
-	V_RETURN( pd3dDevice->CreateInputLayout( elementsDesc, iNumElements, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &m_inputLayout ) );
-	SAFE_RELEASE( vsBlob );
-
+	
+	V_RETURN( ReloadShaders( pd3dDevice ) );
 	V_RETURN( m_sphereMesh.Create( pd3dDevice, L"Misc\\skysphere.sdkmesh" ) );
 
 	D3D11_BUFFER_DESC Desc;
@@ -195,4 +166,54 @@ void SkyRenderer::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_cubeMapRTV );
 	SAFE_RELEASE( m_cubeMapSRV );
 	m_sphereMesh.Destroy();
+}
+
+
+HRESULT	SkyRenderer::ReloadShaders( ID3D11Device* pd3dDevice )
+{
+	HRESULT hr;
+	ID3D11VertexShader* newVs = nullptr;
+	ID3D11GeometryShader* newGs = nullptr;
+	ID3D11PixelShader* newPs = nullptr;
+	ID3D11InputLayout* newInputLayout = nullptr;
+
+	ID3DBlob* vsBlob = nullptr;
+	V_RETURN( CompileShader( L"shaders\\sky.hlsl", nullptr, "vs_main", SHADER_VERTEX, &vsBlob ) );
+	V_RETURN( pd3dDevice->CreateVertexShader( vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &newVs ) );
+	DXUT_SetDebugName( newVs, "SkyVS" );
+
+	ID3DBlob* gsBlob = nullptr;
+	V_RETURN( CompileShader( L"shaders\\sky.hlsl", nullptr, "gs_main", SHADER_GEOMETRY, &gsBlob ) );
+	V_RETURN( pd3dDevice->CreateGeometryShader( gsBlob->GetBufferPointer(), gsBlob->GetBufferSize(), nullptr, &newGs ) );
+	DXUT_SetDebugName( newGs, "SkyGS" );
+	SAFE_RELEASE( gsBlob );
+
+	ID3DBlob* psBlob = nullptr;
+	V_RETURN( CompileShader( L"shaders\\sky.hlsl", nullptr, "ps_main", SHADER_PIXEL, &psBlob ) );
+	V_RETURN( pd3dDevice->CreatePixelShader( psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &newPs ) );
+	DXUT_SetDebugName( newPs, "SkyPS" );
+	SAFE_RELEASE( psBlob );
+
+	const D3D11_INPUT_ELEMENT_DESC elementsDesc[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXTURE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	int iNumElements = sizeof( elementsDesc ) / sizeof( D3D11_INPUT_ELEMENT_DESC );
+
+	V_RETURN( pd3dDevice->CreateInputLayout( elementsDesc, iNumElements, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &newInputLayout ) );
+	SAFE_RELEASE( vsBlob );
+
+	//
+	SAFE_RELEASE( m_vs );
+	SAFE_RELEASE( m_gs );
+	SAFE_RELEASE( m_ps );
+	SAFE_RELEASE( m_inputLayout );
+	m_vs = newVs;
+	m_gs = newGs;
+	m_ps = newPs;
+	m_inputLayout = newInputLayout;
+
+	return S_OK;
 }

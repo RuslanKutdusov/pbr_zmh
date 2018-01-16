@@ -19,21 +19,8 @@ PostProcess::PostProcess()
 HRESULT PostProcess::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 {
 	HRESULT hr;
-	WCHAR str[ MAX_PATH ];
-	V_RETURN( DXUTFindDXSDKMediaFileCch( str, MAX_PATH, L"shaders\\quad.vs" ) );
 
-	ID3DBlob* blob = nullptr;
-	V_RETURN( DXUTCompileFromFile( str, nullptr, "vs_main", "vs_5_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &blob ) );
-	V_RETURN( pd3dDevice->CreateVertexShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &m_quadVs ) );
-	DXUT_SetDebugName( m_quadVs, "QuadVS" );
-	SAFE_RELEASE( blob );
-
-	V_RETURN( DXUTFindDXSDKMediaFileCch( str, MAX_PATH, L"shaders\\postprocess.ps" ) );
-
-	V_RETURN( DXUTCompileFromFile( str, nullptr, "Tonemap", "ps_5_0", D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_DEBUG, 0, &blob ) );
-	V_RETURN( pd3dDevice->CreatePixelShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &m_tonemapPs ) );
-	DXUT_SetDebugName( m_tonemapPs, "TonemapPS" );
-	SAFE_RELEASE( blob );
+	V_RETURN( ReloadShaders( pd3dDevice ) );
 
 	D3D11_SAMPLER_DESC samplerDesc;
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -117,4 +104,31 @@ void PostProcess::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_samperState );
 	SAFE_RELEASE( m_depthStencilState );
 	SAFE_RELEASE( m_paramsBuf );
+}
+
+
+HRESULT PostProcess::ReloadShaders( ID3D11Device* pd3dDevice )
+{
+	HRESULT hr;
+
+	ID3D11VertexShader* newQuadVs = nullptr;
+	ID3D11PixelShader* newTonemapPs = nullptr;
+
+	ID3DBlob* blob = nullptr;
+	V_RETURN( CompileShader( L"shaders\\quad.vs", nullptr, "vs_main", SHADER_VERTEX, &blob ) );
+	V_RETURN( pd3dDevice->CreateVertexShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &newQuadVs ) );
+	DXUT_SetDebugName( newQuadVs, "QuadVS" );
+	SAFE_RELEASE( blob );
+
+	V_RETURN( CompileShader( L"shaders\\postprocess.ps", nullptr, "Tonemap", SHADER_PIXEL, &blob ) );
+	V_RETURN( pd3dDevice->CreatePixelShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &newTonemapPs ) );
+	DXUT_SetDebugName( newTonemapPs, "TonemapPS" );
+	SAFE_RELEASE( blob );
+
+	SAFE_RELEASE( m_quadVs );
+	SAFE_RELEASE( m_tonemapPs );
+	m_quadVs = newQuadVs;
+	m_tonemapPs = newTonemapPs;
+
+	return S_OK;
 }
