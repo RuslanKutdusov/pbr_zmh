@@ -48,19 +48,6 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 
 	V_RETURN( m_sphereMesh.Create( pd3dDevice, L"Misc\\skysphere.sdkmesh" ) );
 
-	D3D11_SAMPLER_DESC samplerDesc;
-	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	samplerDesc.MipLODBias = 0.0f;
-	samplerDesc.MaxAnisotropy = 1;
-	samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-	samplerDesc.BorderColor[ 0 ] = samplerDesc.BorderColor[ 1 ] = samplerDesc.BorderColor[ 2 ] = samplerDesc.BorderColor[ 3 ] = 0;
-	samplerDesc.MinLOD = 0;
-	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
-	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &m_samperState ) );
-
 	D3D11_BUFFER_DESC Desc;
 	Desc.Usage = D3D11_USAGE_DYNAMIC;
 	Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -124,7 +111,6 @@ void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
 	pd3dImmediateContext->GSSetShader( m_gs, nullptr, 0 );
 	pd3dImmediateContext->PSSetShader( m_ps, nullptr, 0 );
 	pd3dImmediateContext->PSSetShaderResources( 0, 1, &m_textureSRV );
-	pd3dImmediateContext->PSSetSamplers( 0, 1, &m_samperState );
 	pd3dImmediateContext->VSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->PSSetConstantBuffers( 1, 1, &m_instanceBuf );
@@ -139,41 +125,12 @@ void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
 		pd3dImmediateContext->OMGetRenderTargets( 1, &savedRTV, &savedDSV );
 
 		InstanceParams params;
+		params.Bake = ~0u;
 		for( int i = 0; i < 6; i++ )
 		{
-			XMVECTOR camAt = XMVectorZero(), camUp = XMVectorZero();
-			switch( i )
-			{
-				case 0:
-					camAt = XMVectorSet( 1.0f, 0.0f, 0.0f, 0.0f );
-					camUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-					break;
-				case 1:
-					camAt = XMVectorSet( -1.0f, 0.0f, 0.0f, 0.0f );
-					camUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-					break;
-				case 2:
-					camAt = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-					camUp = XMVectorSet( 0.0f, 0.0f, -1.0f, 0.0f );
-					break;
-				case 3:
-					camAt = XMVectorSet( 0.0f, -1.0f, 0.0f, 0.0f );
-					camUp = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
-					break;
-				case 4:
-					camAt = XMVectorSet( 0.0f, 0.0f, 1.0f, 0.0f );
-					camUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-					break;
-				case 5:
-					camAt = XMVectorSet( 0.0f, 0.0f, -1.0f, 0.0f );
-					camUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-					break;
-			}
-
-			XMMATRIX view = XMMatrixLookAtLH( XMVectorZero(), camAt, camUp );
+			XMMATRIX view = DXUTGetCubeMapViewMatrix( i );
 			XMMATRIX proj = XMMatrixPerspectiveFovLH( XM_PI / 2.0f, 1.0f, 1.0f, 5000.0f );
 			params.BakeViewProj[ i ] = XMMatrixMultiply( view, proj );
-			params.Bake = ~0u;
 		}
 
 		D3D11_VIEWPORT viewport;
@@ -201,6 +158,8 @@ void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
 	Draw( pd3dImmediateContext, 1, params );
 
 	pd3dImmediateContext->GSSetShader( nullptr, nullptr, 0 );
+	ID3D11Buffer* nullBuffer = nullptr;
+	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &nullBuffer );
 }
 
 
@@ -231,7 +190,6 @@ void SkyRenderer::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_gs );
 	SAFE_RELEASE( m_ps );
 	SAFE_RELEASE( m_textureSRV );
-	SAFE_RELEASE( m_samperState );
 	SAFE_RELEASE( m_instanceBuf );
 	SAFE_RELEASE( m_cubeMapTexture );
 	SAFE_RELEASE( m_cubeMapRTV );

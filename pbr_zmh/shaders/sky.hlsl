@@ -22,7 +22,6 @@ struct GSOutput
 
 
 Texture2D Texture : register( t0 );
-SamplerState Sampler : register( s0 );
 
 
 VSOutput vs_main( SdkMeshVertex input, uint id : SV_InstanceID )
@@ -59,5 +58,5 @@ void gs_main( triangle VSOutput input[3], inout TriangleStream< GSOutput > TriSt
 
 float4 ps_main( GSOutput input ) : SV_Target
 {
-	return Texture.Sample( Sampler, input.uv );
+	return Texture.Sample( LinearWrapSampler, input.uv );
 }

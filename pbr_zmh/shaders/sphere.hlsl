@@ -40,7 +40,8 @@ float4 ps_main( VSOutput input ) : SV_Target
 	float3 lightColor = 1.0f;
 	
 	float3 light = CalcLight( normal, LightDir, view, Metalness, Roughness, albedo ) * lightColor;
+	float3 env = GetEnvironmentLight( normal, view );
 
-	float4 ret = float4( light, 1.0f );
+	float4 ret = float4( light + env, 1.0f );
 	return ret;
 }

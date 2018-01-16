@@ -1,5 +1,6 @@
 #include "Precompiled.h"
 #include "resource.h"
+#include "shaders/global_registers.h"
 
 #pragma warning( disable : 4100 )
 
@@ -39,6 +40,7 @@ CDXUTTextHelper*                    g_pTxtHelper = nullptr;
 ID3D11Buffer*						g_globalParamsBuf = nullptr;
 ID3D11DepthStencilState*			g_depthStencilState = nullptr;
 ID3D11RasterizerState*				g_rasterizerState = nullptr;
+ID3D11SamplerState*					g_linearWrapSamplerState = nullptr;
 SphereRenderer						g_sphereRenderer;
 SkyRenderer							g_skyRenderer;
 PostProcess							g_postProcess;
@@ -168,6 +170,19 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	depthDesc.BackFace = defaultStencilOp;
 	pd3dDevice->CreateDepthStencilState( &depthDesc, &g_depthStencilState );
 
+	D3D11_SAMPLER_DESC samplerDesc;
+	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+	samplerDesc.MipLODBias = 0.0f;
+	samplerDesc.MaxAnisotropy = 1;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+	samplerDesc.BorderColor[ 0 ] = samplerDesc.BorderColor[ 1 ] = samplerDesc.BorderColor[ 2 ] = samplerDesc.BorderColor[ 3 ] = 0;
+	samplerDesc.MinLOD = 0;
+	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &g_linearWrapSamplerState ) );
+
     return S_OK;
 }
 
@@ -265,6 +280,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	pd3dImmediateContext->RSSetState( g_rasterizerState );
 	pd3dImmediateContext->OMSetDepthStencilState( g_depthStencilState, 0 );
+	pd3dImmediateContext->PSSetSamplers( LINEAR_WRAP_SAMPLER_STATE, 1, &g_linearWrapSamplerState );
 
 	// update global params
 	{
@@ -283,14 +299,21 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		pd3dImmediateContext->Unmap( g_globalParamsBuf, 0 );
 
 		// apply
-		pd3dImmediateContext->VSSetConstantBuffers( 0, 1, &g_globalParamsBuf );
-		pd3dImmediateContext->PSSetConstantBuffers( 0, 1, &g_globalParamsBuf );
+		pd3dImmediateContext->VSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
+		pd3dImmediateContext->PSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
 	}
 
 
 	//
 	if( g_drawSky )
+	{
+		ID3D11ShaderResourceView* environmentMap = nullptr;
+		pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
 		g_skyRenderer.Render( pd3dImmediateContext );
+	}
+
+	ID3D11ShaderResourceView* environmentMap = g_skyRenderer.GetCubeMapSRV();
+	pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
 
 	if( g_sceneType == SCENE_ONE_SPHERE )
 	{
@@ -354,6 +377,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_globalParamsBuf );
 	SAFE_RELEASE( g_rasterizerState );
 	SAFE_RELEASE( g_depthStencilState );
+	SAFE_RELEASE( g_linearWrapSamplerState );
 	SAFE_RELEASE( g_hdrBackbufferTexture );
 	SAFE_RELEASE( g_hdrBackbufferRTV );
 	SAFE_RELEASE( g_hdrBackbufferSRV );

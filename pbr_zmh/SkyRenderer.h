@@ -10,6 +10,8 @@ public:
 	void    Render( ID3D11DeviceContext* pd3dImmediateContext );
 	void    OnD3D11DestroyDevice();
 
+	ID3D11ShaderResourceView* GetCubeMapSRV() const { return m_cubeMapSRV; }
+
 public:
 
 	ID3D11InputLayout* m_inputLayout = nullptr;
@@ -17,7 +19,6 @@ public:
 	ID3D11GeometryShader* m_gs = nullptr;
 	ID3D11PixelShader* m_ps = nullptr;
 	ID3D11ShaderResourceView* m_textureSRV = nullptr;
-	ID3D11SamplerState* m_samperState = nullptr;
 	ID3D11Buffer* m_instanceBuf = nullptr;
 	CDXUTSDKMesh m_sphereMesh;
 	ID3D11Texture2D* m_cubeMapTexture;

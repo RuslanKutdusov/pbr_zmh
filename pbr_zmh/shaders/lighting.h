@@ -74,3 +74,9 @@ float3 CalcLight( float3 N, float3 L, float3 V, float metalness, float perceptua
 
 	return albedo * diffuseTerm + specularTerm * FresnelTerm( specularColor, dotLH );
 }
+
+
+float3 GetEnvironmentLight( float3 N, float3 V )
+{
+	return EnvironmentMap.Sample( LinearWrapSampler, -reflect( N, V ) );
+}
