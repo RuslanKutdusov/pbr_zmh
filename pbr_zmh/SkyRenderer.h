@@ -11,6 +11,7 @@ public:
 	void    OnD3D11DestroyDevice();
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 
+	HRESULT LoadSkyTexture( ID3D11Device* pd3dDevice, const wchar_t* filename );
 	ID3D11ShaderResourceView* GetCubeMapSRV() const { return m_cubeMapSRV; }
 
 public:
@@ -19,7 +20,7 @@ public:
 	ID3D11VertexShader* m_vs = nullptr;
 	ID3D11GeometryShader* m_gs = nullptr;
 	ID3D11PixelShader* m_ps = nullptr;
-	ID3D11ShaderResourceView* m_textureSRV = nullptr;
+	ID3D11ShaderResourceView* m_skyTextureSRV = nullptr;
 	ID3D11Buffer* m_instanceBuf = nullptr;
 	CDXUTSDKMesh m_sphereMesh;
 	ID3D11Texture2D* m_cubeMapTexture;

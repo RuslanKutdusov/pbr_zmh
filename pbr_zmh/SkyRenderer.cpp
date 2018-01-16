@@ -28,8 +28,6 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &m_instanceBuf ) );
 	DXUT_SetDebugName( m_instanceBuf, "InstanceParams" );
 
-	V_RETURN( DXUTCreateShaderResourceViewFromFile( pd3dDevice, L"HDRs\\uffizi_cross.dds", &m_textureSRV ) );
-
 	// cube map
 	{
 		D3D11_TEXTURE2D_DESC texDesc;
@@ -81,7 +79,7 @@ void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
 	pd3dImmediateContext->VSSetShader( m_vs, nullptr, 0 );
 	pd3dImmediateContext->GSSetShader( m_gs, nullptr, 0 );
 	pd3dImmediateContext->PSSetShader( m_ps, nullptr, 0 );
-	pd3dImmediateContext->PSSetShaderResources( 0, 1, &m_textureSRV );
+	pd3dImmediateContext->PSSetShaderResources( 0, 1, &m_skyTextureSRV );
 	pd3dImmediateContext->VSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->PSSetConstantBuffers( 1, 1, &m_instanceBuf );
@@ -160,7 +158,7 @@ void SkyRenderer::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_vs );
 	SAFE_RELEASE( m_gs );
 	SAFE_RELEASE( m_ps );
-	SAFE_RELEASE( m_textureSRV );
+	SAFE_RELEASE( m_skyTextureSRV );
 	SAFE_RELEASE( m_instanceBuf );
 	SAFE_RELEASE( m_cubeMapTexture );
 	SAFE_RELEASE( m_cubeMapRTV );
@@ -214,6 +212,16 @@ HRESULT	SkyRenderer::ReloadShaders( ID3D11Device* pd3dDevice )
 	m_gs = newGs;
 	m_ps = newPs;
 	m_inputLayout = newInputLayout;
+
+	return S_OK;
+}
+
+
+HRESULT SkyRenderer::LoadSkyTexture( ID3D11Device* pd3dDevice, const wchar_t* filename )
+{
+	HRESULT hr;
+	SAFE_RELEASE( m_skyTextureSRV );
+	V_RETURN( DXUTCreateShaderResourceViewFromFile( pd3dDevice, filename, &m_skyTextureSRV ) );
 
 	return S_OK;
 }
