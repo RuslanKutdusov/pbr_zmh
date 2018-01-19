@@ -79,6 +79,18 @@ ID3D11Texture2D*					g_hdrBackbufferTexture;
 ID3D11RenderTargetView*				g_hdrBackbufferRTV;
 ID3D11ShaderResourceView*			g_hdrBackbufferSRV;
 
+ID3D11VertexShader* g_lineVs = nullptr;
+ID3D11VertexShader* g_planeVs = nullptr;
+ID3D11PixelShader* g_linePs = nullptr;
+ID3D11Buffer*		g_lineParamsBuf = nullptr;
+struct LineParams
+{
+	float Metalness;
+	float Roughness;
+	UINT NumSamples;
+	UINT padding;
+};
+
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
 float g_metalness = 1.0f;
@@ -202,6 +214,27 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	samplerDesc.MinLOD = 0;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &g_linearWrapSamplerState ) );
+
+	//
+	ID3DBlob* blob = nullptr;
+	V_RETURN( CompileShader( L"shaders\\line.hlsl", nullptr, "vs_line", SHADER_VERTEX, &blob ) );
+	V_RETURN( pd3dDevice->CreateVertexShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &g_lineVs ) );
+	DXUT_SetDebugName( g_lineVs, "LineVS" );
+	SAFE_RELEASE( blob );
+
+	V_RETURN( CompileShader( L"shaders\\line.hlsl", nullptr, "vs_plane", SHADER_VERTEX, &blob ) );
+	V_RETURN( pd3dDevice->CreateVertexShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &g_planeVs ) );
+	DXUT_SetDebugName( g_planeVs, "PlaneVS" );
+	SAFE_RELEASE( blob );
+
+	V_RETURN( CompileShader( L"shaders\\line.hlsl", nullptr, "ps_main", SHADER_PIXEL, &blob ) );
+	V_RETURN( pd3dDevice->CreatePixelShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &g_linePs ) );
+	DXUT_SetDebugName( g_linePs, "LinePS" );
+	SAFE_RELEASE( blob );
+
+	Desc.ByteWidth = sizeof( LineParams );
+	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &g_lineParamsBuf ) );
+	DXUT_SetDebugName( g_lineParamsBuf, "LineParams" );
 
     return S_OK;
 }
@@ -359,7 +392,31 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->ClearRenderTargetView( pRTV, Colors::MidnightBlue );
 	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
 
-	g_postProcess.Render( pd3dImmediateContext, g_hdrBackbufferSRV, g_exposure );
+	//g_postProcess.Render( pd3dImmediateContext, g_hdrBackbufferSRV, g_exposure );
+
+	{
+		D3D11_MAPPED_SUBRESOURCE mappedSubres;
+		pd3dImmediateContext->Map( g_lineParamsBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
+
+		LineParams* lineParams = ( LineParams* )mappedSubres.pData;
+		lineParams->Metalness = g_metalness;
+		lineParams->Roughness = g_roughness;
+		lineParams->NumSamples = 1024;
+		pd3dImmediateContext->Unmap( g_lineParamsBuf, 0 );
+
+		// apply
+		pd3dImmediateContext->VSSetConstantBuffers( 1, 1, &g_lineParamsBuf );
+		pd3dImmediateContext->PSSetConstantBuffers( 1, 1, &g_lineParamsBuf );
+		pd3dImmediateContext->IASetInputLayout( nullptr );
+		pd3dImmediateContext->VSSetShader( g_lineVs, nullptr, 0 );
+		pd3dImmediateContext->PSSetShader( g_linePs, nullptr, 0 );
+		pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_LINELIST );
+		pd3dImmediateContext->Draw( lineParams->NumSamples * 2 + 4, 0 );
+
+		pd3dImmediateContext->VSSetShader( g_planeVs, nullptr, 0 );
+		pd3dImmediateContext->IASetPrimitiveTopology( D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+		pd3dImmediateContext->DrawInstanced( 6, 2, 0, 0 );
+	}
 
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
 	g_HUD.OnRender(fElapsedTime);

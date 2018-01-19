@@ -99,6 +99,24 @@ float3 ImportanceSampleGGX( float2 E, float Roughness, float3 N )
 }
 
 
+float3 ImportanceSampleGGX( float2 E, float Roughness )
+{
+	float m = Roughness * Roughness;
+	float m2 = m * m;
+
+	float Phi = 2 * PI * E.x;
+	float CosTheta = sqrt( (1 - E.y) / ( 1 + (m2 - 1) * E.y ) );
+	float SinTheta = sqrt( 1 - CosTheta * CosTheta );
+
+	float3 H;
+	H.x = SinTheta * cos( Phi );
+	H.y = SinTheta * sin( Phi );
+	H.z = CosTheta;
+
+	return H;
+}
+
+
 uint3 RandVector(int3 p)
 {
 	uint3 v = uint3(p);
