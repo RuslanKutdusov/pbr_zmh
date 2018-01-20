@@ -14,7 +14,9 @@ struct GlobalParams
 	XMVECTOR ViewPos;
 	XMVECTOR LightDir;
 	UINT FrameIdx;
-	UINT padding[ 3 ];
+	UINT TotalSamples;
+	UINT SamplesInStep;
+	UINT SamplesProcessed;
 };
 
 
@@ -67,17 +69,19 @@ CDXUTDialog                         g_HUD;                  // manages the 3D UI
 CDXUTTextHelper*                    g_pTxtHelper = nullptr;
 
 ID3D11Buffer*						g_globalParamsBuf = nullptr;
-ID3D11DepthStencilState*			g_depthStencilState = nullptr;
+ID3D11DepthStencilState*			g_depthPassDepthStencilState = nullptr;
+ID3D11DepthStencilState*			g_lightPassDepthStencilState = nullptr;
 ID3D11RasterizerState*				g_rasterizerState = nullptr;
+ID3D11BlendState*					g_singleRtBlendState = nullptr;
+ID3D11BlendState*					g_doubleRtBlendState = nullptr;
 ID3D11SamplerState*					g_linearWrapSamplerState = nullptr;
 SphereRenderer						g_sphereRenderer;
 SkyRenderer							g_skyRenderer;
 PostProcess							g_postProcess;
 
-// hdr stuff
-ID3D11Texture2D*					g_hdrBackbufferTexture;
-ID3D11RenderTargetView*				g_hdrBackbufferRTV;
-ID3D11ShaderResourceView*			g_hdrBackbufferSRV;
+// lighting render targets 
+RenderTarget						g_directLightRenderTarget;
+RenderTarget						g_indirectLightRenderTarget;
 
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
@@ -89,6 +93,12 @@ float g_exposure = 1.0f;
 bool g_drawSky = true;
 SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
 UINT g_frameIdx = 0;
+UINT g_samplesProcessed = 0;
+bool g_resetSampling = false;
+XMMATRIX g_lastFrameViewProj;
+
+const UINT TotalSamples = 128;
+const UINT SamplesInStep = 16;
 
 const wchar_t* g_skyTextureFiles[] = {
 	L"HDRs\\galileo_cross.dds",
@@ -188,7 +198,11 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	{ D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS };
 	depthDesc.FrontFace = defaultStencilOp;
 	depthDesc.BackFace = defaultStencilOp;
-	pd3dDevice->CreateDepthStencilState( &depthDesc, &g_depthStencilState );
+	pd3dDevice->CreateDepthStencilState( &depthDesc, &g_depthPassDepthStencilState );
+
+	depthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	depthDesc.DepthFunc = D3D11_COMPARISON_EQUAL;
+	pd3dDevice->CreateDepthStencilState( &depthDesc, &g_lightPassDepthStencilState );
 
 	D3D11_SAMPLER_DESC samplerDesc;
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -203,6 +217,23 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &g_linearWrapSamplerState ) );
 
+	D3D11_BLEND_DESC blendDesc;
+	memset( &blendDesc, 0, sizeof( D3D11_BLEND_DESC ) );
+	blendDesc.AlphaToCoverageEnable = false;
+	blendDesc.IndependentBlendEnable = true;
+	blendDesc.RenderTarget[ 0 ].RenderTargetWriteMask = 0x0f;
+	V_RETURN( pd3dDevice->CreateBlendState( &blendDesc, &g_singleRtBlendState ) );
+
+	blendDesc.RenderTarget[ 1 ].BlendEnable = true;
+	blendDesc.RenderTarget[ 1 ].SrcBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[ 1 ].DestBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[ 1 ].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[ 1 ].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[ 1 ].DestBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[ 1 ].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[ 1 ].RenderTargetWriteMask = 0x0f;
+	V_RETURN( pd3dDevice->CreateBlendState( &blendDesc, &g_doubleRtBlendState ) );
+
     return S_OK;
 }
 
@@ -215,36 +246,10 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 {
 	HRESULT hr = S_OK;
 
-	{
-
-		D3D11_TEXTURE2D_DESC texDesc;
-		ZeroMemory( &texDesc, sizeof( D3D11_TEXTURE2D_DESC ) );
-		texDesc.ArraySize = 1;
-		texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-		texDesc.Usage = D3D11_USAGE_DEFAULT;
-		texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-		texDesc.Width = pBackBufferSurfaceDesc->Width;
-		texDesc.Height = pBackBufferSurfaceDesc->Height;
-		texDesc.MipLevels = 1;
-		texDesc.SampleDesc.Count = 1;
-		V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &g_hdrBackbufferTexture ) );
-		DXUT_SetDebugName( g_hdrBackbufferTexture, "HdrBackbufferTexture" );
-
-		// Create the render target view
-		D3D11_RENDER_TARGET_VIEW_DESC rtDesc;
-		rtDesc.Format = texDesc.Format;
-		rtDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-		rtDesc.Texture2D.MipSlice = 0;
-		V_RETURN( pd3dDevice->CreateRenderTargetView( g_hdrBackbufferTexture, &rtDesc, &g_hdrBackbufferRTV ) );
-		DXUT_SetDebugName( g_hdrBackbufferRTV, "HdrBackbufferRTV" );
-
-		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-		srvDesc.Format = texDesc.Format;
-		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		srvDesc.Texture2D.MipLevels = 1;
-		srvDesc.Texture2D.MostDetailedMip = 0;
-		V_RETURN( pd3dDevice->CreateShaderResourceView( g_hdrBackbufferTexture, &srvDesc, &g_hdrBackbufferSRV ) );
-	}
+	g_directLightRenderTarget.Init(pd3dDevice, DXGI_FORMAT_R16G16B16A16_FLOAT, pBackBufferSurfaceDesc->Width,
+		pBackBufferSurfaceDesc->Height, "DirectLightRT");
+	g_indirectLightRenderTarget.Init(pd3dDevice, DXGI_FORMAT_R32G32B32A32_FLOAT, pBackBufferSurfaceDesc->Width,
+		pBackBufferSurfaceDesc->Height, "IndirectLightRT");
 
 	V_RETURN(g_DialogResourceManager.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
 	V_RETURN(g_D3DSettingsDlg.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
@@ -276,6 +281,83 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 }
 
 
+void BakeCubeMap( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Bake cubemap" );
+	ID3D11ShaderResourceView* environmentMap = nullptr;
+	pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
+	g_skyRenderer.BakeCubemap( pd3dImmediateContext );
+	DXUT_EndPerfEvent();
+}
+
+
+void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	SphereRenderer::InstanceParams oneSphereInstance;
+	SphereRenderer::InstanceParams multSphereInstances[ 11 * 11 ];
+	oneSphereInstance.WorldMatrix = XMMatrixIdentity();
+	oneSphereInstance.Metalness = g_metalness;
+	oneSphereInstance.Roughness = g_roughness;
+	oneSphereInstance.DirectLight = g_directLight;
+	oneSphereInstance.IndirectLight = g_indirectLight;
+	int instanceCounter = 0;
+	for( int x = -5; x <= 5; x++ )
+	{
+		for( int z = -5; z <= 5; z++ )
+		{
+			multSphereInstances[ instanceCounter ] = oneSphereInstance;
+			multSphereInstances[ instanceCounter ].Metalness = ( x + 5 ) / 10.0f;
+			multSphereInstances[ instanceCounter ].Roughness = ( z + 5 ) / 10.0f;
+			multSphereInstances[ instanceCounter ].WorldMatrix = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
+			instanceCounter++;
+		}
+	}
+	SphereRenderer::InstanceParams* sphereInstances = g_sceneType == SCENE_ONE_SPHERE ? &oneSphereInstance : &multSphereInstances[ 0 ];
+	UINT numSphereInstances = g_sceneType == SCENE_ONE_SPHERE ? 1 : 11 * 11;
+
+	// depth pass
+	{
+		DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Depth pass" );
+		ID3D11RenderTargetView* rtv[2] = { nullptr, nullptr };
+		pd3dImmediateContext->OMSetRenderTargets( 2, rtv, DXUTGetD3D11DepthStencilView() );
+		pd3dImmediateContext->ClearDepthStencilView( DXUTGetD3D11DepthStencilView(), D3D11_CLEAR_DEPTH, 1.0, 0 );
+		pd3dImmediateContext->OMSetDepthStencilState( g_depthPassDepthStencilState, 0 );
+
+		if( g_drawSky )
+			g_skyRenderer.RenderDepthPass( pd3dImmediateContext );
+		if( g_sceneType == SCENE_ONE_SPHERE || g_sceneType == SCENE_MULTIPLE_SPHERES )
+			g_sphereRenderer.RenderDepthPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
+
+		DXUT_EndPerfEvent();
+	}
+
+	// light pass
+	{
+		DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Light pass" );
+		ID3D11RenderTargetView* rtv[2];
+		rtv[ 0 ] = g_directLightRenderTarget.rtv;
+		rtv[ 1 ] = g_indirectLightRenderTarget.rtv;
+		pd3dImmediateContext->OMSetRenderTargets( 2, rtv, DXUTGetD3D11DepthStencilView() );
+		pd3dImmediateContext->ClearRenderTargetView( g_directLightRenderTarget.rtv, Colors::Black );
+		pd3dImmediateContext->OMSetDepthStencilState( g_lightPassDepthStencilState, 0 );
+
+		ID3D11ShaderResourceView* environmentMap = g_skyRenderer.GetCubeMapSRV();
+		pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
+		pd3dImmediateContext->OMSetBlendState( g_doubleRtBlendState, nullptr, ~0u );
+
+		if( g_drawSky )
+			g_skyRenderer.RenderLightPass( pd3dImmediateContext );
+		if( g_sceneType == SCENE_ONE_SPHERE || g_sceneType == SCENE_MULTIPLE_SPHERES )
+			g_sphereRenderer.RenderLightPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
+
+		DXUT_EndPerfEvent();
+	}
+
+	if( g_samplesProcessed < TotalSamples )
+			g_samplesProcessed += SamplesInStep;
+}
+
+
 //--------------------------------------------------------------------------------------
 // Render the scene using the D3D11 device
 //--------------------------------------------------------------------------------------
@@ -286,6 +368,15 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	auto pRTV = DXUTGetD3D11RenderTargetView();
 	auto pDSV = DXUTGetD3D11DepthStencilView();
+	CBaseCamera* currentCamera = g_sceneType == SCENE_ONE_SPHERE ? (CBaseCamera*)&g_modelViewerCamera : (CBaseCamera*)&g_firstPersonCamera;
+	XMMATRIX viewProj = XMMatrixMultiply(currentCamera->GetViewMatrix(), currentCamera->GetProjMatrix());
+
+	if( g_samplesProcessed == 0 || g_resetSampling || memcmp( &viewProj, &g_lastFrameViewProj, sizeof( XMMATRIX ) ) != 0 ) {
+		pd3dImmediateContext->ClearRenderTargetView( g_indirectLightRenderTarget.rtv, Colors::Black );
+		g_lastFrameViewProj = viewProj;
+		g_resetSampling = false;
+		g_samplesProcessed = 0;
+	}
 
 	// If the settings dialog is being shown, then render it instead of rendering the app's scene
 	if (g_D3DSettingsDlg.IsActive())
@@ -294,12 +385,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		return;
 	}
 
-	pd3dImmediateContext->OMSetRenderTargets( 1, &g_hdrBackbufferRTV, pDSV );
-	pd3dImmediateContext->ClearRenderTargetView( g_hdrBackbufferRTV, Colors::Black );
-	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
-
 	pd3dImmediateContext->RSSetState( g_rasterizerState );
-	pd3dImmediateContext->OMSetDepthStencilState( g_depthStencilState, 0 );
+	pd3dImmediateContext->OMSetDepthStencilState( g_lightPassDepthStencilState, 0 );
+	pd3dImmediateContext->OMSetBlendState( g_singleRtBlendState, nullptr, ~0u );
 	pd3dImmediateContext->PSSetSamplers( LINEAR_WRAP_SAMPLER_STATE, 1, &g_linearWrapSamplerState );
 
 	// update global params
@@ -307,15 +395,16 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		D3D11_MAPPED_SUBRESOURCE mappedSubres;
 		pd3dImmediateContext->Map( g_globalParamsBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
 
-		CBaseCamera* currentCamera = g_sceneType == SCENE_ONE_SPHERE ? ( CBaseCamera* )&g_modelViewerCamera : ( CBaseCamera* )&g_firstPersonCamera;
-
 		GlobalParams* globalParams = ( GlobalParams* )mappedSubres.pData;
-		globalParams->ViewProjMatrix = XMMatrixMultiply( currentCamera->GetViewMatrix(), currentCamera->GetProjMatrix() );
+		globalParams->ViewProjMatrix = viewProj;
 		globalParams->ViewPos = currentCamera->GetEyePt();
 		float lightDirVert = ToRad( ( float )g_lightDirVert );
 		float lightDirHor = ToRad( ( float )g_lightDirHor );
 		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
 		globalParams->FrameIdx = g_frameIdx;
+		globalParams->TotalSamples = TotalSamples;
+		globalParams->SamplesInStep = SamplesInStep;
+		globalParams->SamplesProcessed = g_samplesProcessed;
 
 		pd3dImmediateContext->Unmap( g_globalParamsBuf, 0 );
 
@@ -324,42 +413,19 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		pd3dImmediateContext->PSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
 	}
 
+	BakeCubeMap( pd3dImmediateContext );
+	RenderScene( pd3dImmediateContext );	
 
 	//
-	ID3D11ShaderResourceView* environmentMap = nullptr;
-	pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
-	g_skyRenderer.BakeCubemap( pd3dImmediateContext );
-
-	if( g_drawSky )
-		g_skyRenderer.Render( pd3dImmediateContext );
-
-	environmentMap = g_skyRenderer.GetCubeMapSRV();
-	pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
-
-	if( g_sceneType == SCENE_ONE_SPHERE )
-	{
-		g_sphereRenderer.Render( XMMatrixIdentity(), g_metalness, g_roughness, g_directLight, g_indirectLight, pd3dImmediateContext );
-	} 
-	else if( g_sceneType == SCENE_MULTIPLE_SPHERES )
-	{
-		for( int x = -5; x <= 5; x++ )
-		{
-			for( int z = -5; z <= 5; z++ )
-			{
-				float metalness = ( x + 5 ) / 10.0f;
-				float roughness = ( z + 5 ) / 10.0f;
-				XMMATRIX tranlation = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
-				g_sphereRenderer.Render( tranlation, metalness, roughness, g_directLight, g_indirectLight, pd3dImmediateContext );
-			}
-		}
-	}
-
-	//
-	pd3dImmediateContext->OMSetRenderTargets( 1, &pRTV, pDSV );
+	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"Tonemap");
+	ID3D11RenderTargetView* rtv[2];
+	rtv[ 0 ] = pRTV;
+	rtv[ 1 ] = nullptr;
+	pd3dImmediateContext->OMSetRenderTargets( 2, rtv, pDSV );
 	pd3dImmediateContext->ClearRenderTargetView( pRTV, Colors::MidnightBlue );
 	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
-
-	g_postProcess.Render( pd3dImmediateContext, g_hdrBackbufferSRV, g_exposure );
+	g_postProcess.Render( pd3dImmediateContext, g_directLightRenderTarget.srv, g_indirectLightRenderTarget.srv, g_exposure );
+	DXUT_EndPerfEvent();
 
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
 	g_HUD.OnRender(fElapsedTime);
@@ -379,9 +445,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 {
 	g_DialogResourceManager.OnD3D11ReleasingSwapChain();
-	SAFE_RELEASE( g_hdrBackbufferTexture );
-	SAFE_RELEASE( g_hdrBackbufferRTV );
-	SAFE_RELEASE( g_hdrBackbufferSRV );
+	g_directLightRenderTarget.Release();
+	g_indirectLightRenderTarget.Release();
 }
 
 
@@ -396,12 +461,13 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	DXUTGetGlobalResourceCache().OnDestroyDevice();
 	SAFE_RELEASE( g_globalParamsBuf );
 	SAFE_RELEASE( g_rasterizerState );
-	SAFE_RELEASE( g_depthStencilState );
+	SAFE_RELEASE( g_depthPassDepthStencilState );
+	SAFE_RELEASE( g_lightPassDepthStencilState );
+	SAFE_RELEASE( g_singleRtBlendState );
+	SAFE_RELEASE( g_doubleRtBlendState );
 	SAFE_RELEASE( g_linearWrapSamplerState );
-	SAFE_RELEASE( g_hdrBackbufferTexture );
-	SAFE_RELEASE( g_hdrBackbufferRTV );
-	SAFE_RELEASE( g_hdrBackbufferSRV );
-
+	g_directLightRenderTarget.Release();
+	g_indirectLightRenderTarget.Release();
 
 	g_sphereRenderer.OnD3D11DestroyDevice();
 	g_skyRenderer.OnD3D11DestroyDevice();
@@ -584,6 +650,7 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_skyRenderer.ReloadShaders( DXUTGetD3D11Device() );
 			g_sphereRenderer.ReloadShaders( DXUTGetD3D11Device() );
 			g_postProcess.ReloadShaders( DXUTGetD3D11Device() );
+			g_resetSampling = true;
 			break;
 		}
 		case IDC_LIGHTVERT:
@@ -605,6 +672,7 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_metalness = g_HUD.GetSlider( IDC_METALNESS )->GetValue() / 100.0f;
 			swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_metalness );
 			g_HUD.GetStatic( IDC_METALNESS_STATIC )->SetText( str );
+			g_resetSampling = true;
 			break;
 		}
 		case IDC_ROUGHNESS:
@@ -612,6 +680,7 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_roughness = g_HUD.GetSlider( IDC_ROUGHNESS )->GetValue() / 100.0f;
 			swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
 			g_HUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
+			g_resetSampling = true;
 			break;
 		}
 		case IDC_DIRECT_LIGHT:
@@ -622,6 +691,7 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 		case IDC_INDIRECT_LIGHT:
 		{
 			g_indirectLight = g_HUD.GetCheckBox( IDC_INDIRECT_LIGHT )->GetChecked();
+			g_resetSampling = true;
 			break;
 		}
 		case IDC_EXPOSURE:
@@ -640,13 +710,13 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 		{
 			const wchar_t* filename = ( const wchar_t* )g_HUD.GetComboBox( IDC_SELECT_SKY_TEXTURE )->GetSelectedData();
 			g_skyRenderer.LoadSkyTexture( DXUTGetD3D11Device(), filename );
+			g_resetSampling = true;
 		}
 		case IDC_SCENE_TYPE:
 		{
 			g_sceneType = ( SCENE_TYPE )PtrToUlong( g_HUD.GetComboBox( IDC_SCENE_TYPE )->GetSelectedData() );
+			g_resetSampling = true;
 			break;
 		}
 	}
 }
-
-

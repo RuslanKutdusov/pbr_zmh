@@ -4,9 +4,12 @@
 cbuffer GlobalParams : register( BRegister( GLOBAL_PARAMS_CB ) )
 {
 	float4x4 ViewProjMatrix;
-	float3 ViewPos;
-	float3 LightDir;
+	float4 ViewPos;
+	float4 LightDir;
 	uint FrameIdx;
+	uint TotalSamples;
+	uint SamplesInStep;
+	uint SamplesProcessed;
 };
 
 

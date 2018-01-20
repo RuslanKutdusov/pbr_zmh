@@ -8,6 +8,7 @@
 #include "DXUTRes.h"
 #include "DDSTextureLoader.h"
 #include "Helpers.h"
+#include "RenderTarget.h"
 
 #include "SphereRenderer.h"
 #include "SkyRenderer.h"

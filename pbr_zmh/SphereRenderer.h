@@ -4,10 +4,21 @@
 class SphereRenderer
 {
 public:
+	struct InstanceParams
+	{
+		DirectX::XMMATRIX WorldMatrix;
+		float Metalness;
+		float Roughness;
+		UINT DirectLight;
+		UINT IndirectLight;
+	};
+	const UINT MAX_INSTANCES = 128;
+
 	SphereRenderer();
 
 	HRESULT OnD3D11CreateDevice( ID3D11Device* pd3dDevice );
-	void    Render( const DirectX::XMMATRIX& world, float metalness, float roughness, bool directLight, bool indirectLight, ID3D11DeviceContext* pd3dImmediateContext );
+	void	RenderDepthPass( InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
+	void    RenderLightPass( InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
 	void    OnD3D11DestroyDevice();
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 
@@ -18,4 +29,6 @@ private:
 	ID3D11PixelShader* m_ps = nullptr;
 	ID3D11Buffer* m_instanceBuf = nullptr;
 	CDXUTSDKMesh m_sphereMesh;
+
+	void    Render( InstanceParams* instancesParams, UINT numInstances, ID3D11PixelShader* ps, ID3D11DeviceContext* pd3dImmediateContext );
 };

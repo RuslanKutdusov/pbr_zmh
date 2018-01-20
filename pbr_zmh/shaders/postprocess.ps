@@ -3,7 +3,8 @@ cbuffer Params : register( b1 )
 	float Exposure;
 };
 
-Texture2D HDRTexture : register( t0 );
+Texture2D DirectLightTexture : register( t0 );
+Texture2D IndirectLightTexture : register( t1 );
 //SamplerState Sampler : register( s0 );
 
 const static float A = 0.15;
@@ -35,7 +36,14 @@ float3 Tonemap( float3 LinearColor )
 
 float4 Tonemap( float4 pixelPos : SV_Position ) : SV_Target
 {
-	float3 hdr = HDRTexture.Load( int3( pixelPos.xy, 0 ) ).rgb * Exposure;
+	float3 directLight = DirectLightTexture.Load( int3( pixelPos.xy, 0 ) ).rgb;
+	float4 indirectLight = IndirectLightTexture.Load( int3( pixelPos.xy, 0 ) );
+	if( indirectLight.a > 0 )
+		indirectLight.rgb /= indirectLight.a;
+	else
+		indirectLight.rgb = 0;
+
+	float3 hdr = ( directLight + indirectLight.rgb ) * Exposure;
 	float3 ldr = Tonemap( hdr );
 	
 	return float4( ldr, 1.0f );

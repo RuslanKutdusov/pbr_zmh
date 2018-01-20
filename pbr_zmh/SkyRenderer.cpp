@@ -4,6 +4,7 @@ using namespace DirectX;
 
 
 const UINT CUBEMAP_RESOLUTION = 256;
+const UINT CUBEMAP_MIPS = 9;
 
 
 SkyRenderer::SkyRenderer()
@@ -38,9 +39,9 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 		texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 		texDesc.Width = CUBEMAP_RESOLUTION;
 		texDesc.Height = CUBEMAP_RESOLUTION;
-		texDesc.MipLevels = 1;
+		texDesc.MipLevels = CUBEMAP_MIPS;
 		texDesc.SampleDesc.Count = 1;
-		texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+		texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
 		V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &m_cubeMapTexture ) );
 		DXUT_SetDebugName( m_cubeMapTexture, "CubeMapTexture" );
 
@@ -57,7 +58,7 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 		srvDesc.Format = texDesc.Format;
 		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-		srvDesc.TextureCube.MipLevels = 1;
+		srvDesc.TextureCube.MipLevels = CUBEMAP_MIPS;
 		srvDesc.TextureCube.MostDetailedMip = 0;
 		V_RETURN( pd3dDevice->CreateShaderResourceView( m_cubeMapTexture, &srvDesc, &m_cubeMapSRV ) );
 	}
@@ -78,7 +79,6 @@ void SkyRenderer::ApplyResources( ID3D11DeviceContext* pd3dImmediateContext )
 
 	pd3dImmediateContext->VSSetShader( m_vs, nullptr, 0 );
 	pd3dImmediateContext->GSSetShader( m_gs, nullptr, 0 );
-	pd3dImmediateContext->PSSetShader( m_ps, nullptr, 0 );
 	pd3dImmediateContext->PSSetShaderResources( 0, 1, &m_skyTextureSRV );
 	pd3dImmediateContext->VSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &m_instanceBuf );
@@ -88,15 +88,16 @@ void SkyRenderer::ApplyResources( ID3D11DeviceContext* pd3dImmediateContext )
 
 void SkyRenderer::BakeCubemap( ID3D11DeviceContext* pd3dImmediateContext )
 {
+	pd3dImmediateContext->PSSetShader( m_ps, nullptr, 0 );
 	ApplyResources( pd3dImmediateContext );
 
 	// save state
-	ID3D11RenderTargetView* savedRTV;
+	ID3D11RenderTargetView* savedRTVs[ D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT ];
 	ID3D11DepthStencilView* savedDSV;
 	D3D11_VIEWPORT savedViewport;
 	UINT numViewports = 1;
 	pd3dImmediateContext->RSGetViewports( &numViewports, &savedViewport );
-	pd3dImmediateContext->OMGetRenderTargets( 1, &savedRTV, &savedDSV );
+	pd3dImmediateContext->OMGetRenderTargets( D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, savedRTVs, &savedDSV );
 
 	InstanceParams params;
 	params.Bake = ~0u;
@@ -121,18 +122,38 @@ void SkyRenderer::BakeCubemap( ID3D11DeviceContext* pd3dImmediateContext )
 	Draw( pd3dImmediateContext, 6, params );
 
 	// restore state
-	pd3dImmediateContext->OMSetRenderTargets( 1, &savedRTV, savedDSV );
+	pd3dImmediateContext->OMSetRenderTargets( D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT, savedRTVs, savedDSV );
 	pd3dImmediateContext->RSSetViewports( numViewports, &savedViewport );
-	SAFE_RELEASE( savedRTV );
+	for( UINT i = 0; i < D3D11_SIMULTANEOUS_RENDER_TARGET_COUNT; i++ )
+		SAFE_RELEASE( savedRTVs[ i ] );
 	SAFE_RELEASE( savedDSV );
+	pd3dImmediateContext->GSSetShader( nullptr, nullptr, 0 );
+	ID3D11Buffer* nullBuffer = nullptr;
+	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &nullBuffer );
+
+	pd3dImmediateContext->GenerateMips( m_cubeMapSRV );
+}
+
+
+void SkyRenderer::RenderDepthPass( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	pd3dImmediateContext->PSSetShader( nullptr, nullptr, 0 );
+	ApplyResources( pd3dImmediateContext );
+
+	InstanceParams params;
+	params.Bake = 0;
+	Draw( pd3dImmediateContext, 1, params );
+
+	// disable geometry shader
 	pd3dImmediateContext->GSSetShader( nullptr, nullptr, 0 );
 	ID3D11Buffer* nullBuffer = nullptr;
 	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &nullBuffer );
 }
 
 
-void SkyRenderer::Render( ID3D11DeviceContext* pd3dImmediateContext )
+void SkyRenderer::RenderLightPass( ID3D11DeviceContext* pd3dImmediateContext )
 {
+	pd3dImmediateContext->PSSetShader( m_ps, nullptr, 0 );
 	ApplyResources( pd3dImmediateContext );
 
 	InstanceParams params;

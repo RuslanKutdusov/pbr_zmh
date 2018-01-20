@@ -3,16 +3,6 @@
 using namespace DirectX;
 
 
-struct InstanceParams
-{
-	XMMATRIX WorldMatrix;
-	float Metalness;
-	float Roughness;
-	UINT DirectLight;
-	UINT IndirectLight;
-};
-
-
 SphereRenderer::SphereRenderer()
 {
 
@@ -29,7 +19,7 @@ HRESULT SphereRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	Desc.MiscFlags = 0;
-	Desc.ByteWidth = sizeof( InstanceParams );
+	Desc.ByteWidth = sizeof( InstanceParams ) * MAX_INSTANCES;
 	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &m_instanceBuf ) );
 	DXUT_SetDebugName( m_instanceBuf, "InstanceParams" );
 
@@ -39,7 +29,7 @@ HRESULT SphereRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 }
 
 
-void SphereRenderer::Render( const DirectX::XMMATRIX& world, float metalness, float roughness, bool directLight, bool indirectLight, ID3D11DeviceContext* pd3dImmediateContext )
+void SphereRenderer::Render( InstanceParams* instancesParams, UINT numInstances, ID3D11PixelShader* ps, ID3D11DeviceContext* pd3dImmediateContext )
 {
 	pd3dImmediateContext->IASetInputLayout( m_inputLayout );
 
@@ -52,14 +42,7 @@ void SphereRenderer::Render( const DirectX::XMMATRIX& world, float metalness, fl
 	{
 		D3D11_MAPPED_SUBRESOURCE mappedSubres;
 		pd3dImmediateContext->Map( m_instanceBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
-
-		InstanceParams* instanceParams = ( InstanceParams* )mappedSubres.pData;
-		instanceParams->WorldMatrix = world;
-		instanceParams->Metalness = metalness;
-		instanceParams->Roughness = roughness;
-		instanceParams->DirectLight = directLight;
-		instanceParams->IndirectLight = indirectLight;
-
+		memcpy( mappedSubres.pData, instancesParams, sizeof( InstanceParams ) * numInstances );
 		pd3dImmediateContext->Unmap( m_instanceBuf, 0 );
 
 		// apply
@@ -68,7 +51,7 @@ void SphereRenderer::Render( const DirectX::XMMATRIX& world, float metalness, fl
 	}
 
 	pd3dImmediateContext->VSSetShader( m_vs, nullptr, 0 );
-	pd3dImmediateContext->PSSetShader( m_ps, nullptr, 0 );
+	pd3dImmediateContext->PSSetShader( ps, nullptr, 0 );
 
 	for( UINT subset = 0; subset < m_sphereMesh.GetNumSubsets( 0 ); ++subset )
 	{
@@ -78,8 +61,20 @@ void SphereRenderer::Render( const DirectX::XMMATRIX& world, float metalness, fl
 		auto PrimType = CDXUTSDKMesh::GetPrimitiveType11( ( SDKMESH_PRIMITIVE_TYPE )pSubset->PrimitiveType );
 		pd3dImmediateContext->IASetPrimitiveTopology( PrimType );
 
-		pd3dImmediateContext->DrawIndexed( ( UINT )pSubset->IndexCount, 0, ( UINT )pSubset->VertexStart );
+		pd3dImmediateContext->DrawIndexedInstanced( ( UINT )pSubset->IndexCount, numInstances, 0, ( UINT )pSubset->VertexStart, 0 );
 	}
+}
+
+
+void SphereRenderer::RenderDepthPass(InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext)
+{
+	Render( instancesParams, numInstances, nullptr, pd3dImmediateContext );
+}
+
+
+void SphereRenderer::RenderLightPass( InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext )
+{
+	Render( instancesParams, numInstances, m_ps, pd3dImmediateContext );
 }
 
 

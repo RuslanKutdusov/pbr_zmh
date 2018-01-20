@@ -7,7 +7,7 @@ public:
 	PostProcess();
 
 	HRESULT OnD3D11CreateDevice( ID3D11Device* pd3dDevice );
-	void    Render( ID3D11DeviceContext* pd3dImmediateContext, ID3D11ShaderResourceView* hdrTextureSRV, float exposure );
+	void    Render( ID3D11DeviceContext* pd3dImmediateContext, ID3D11ShaderResourceView* directLightSRV, ID3D11ShaderResourceView* indirectLightSRV, float exposure );
 	void    OnD3D11DestroyDevice();
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 

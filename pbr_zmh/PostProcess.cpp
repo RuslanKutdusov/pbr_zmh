@@ -61,13 +61,14 @@ HRESULT PostProcess::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 }
 
 
-void PostProcess::Render( ID3D11DeviceContext* pd3dImmediateContext, ID3D11ShaderResourceView* hdrTextureSRV, float exposure )
+void PostProcess::Render( ID3D11DeviceContext* pd3dImmediateContext, ID3D11ShaderResourceView* directLightSRV, ID3D11ShaderResourceView* indirectLightSRV, float exposure )
 {
 	pd3dImmediateContext->IASetInputLayout( nullptr );
 	pd3dImmediateContext->VSSetShader( m_quadVs, nullptr, 0 );
 	pd3dImmediateContext->PSSetShader( m_tonemapPs, nullptr, 0 );
 
-	pd3dImmediateContext->PSSetShaderResources( 0, 1, &hdrTextureSRV );
+	pd3dImmediateContext->PSSetShaderResources( 0, 1, &directLightSRV );
+	pd3dImmediateContext->PSSetShaderResources( 1, 1, &indirectLightSRV );
 	pd3dImmediateContext->PSSetSamplers( 0, 1, &m_samperState );
 
 	ID3D11DepthStencilState* savedDepthStencilState;
@@ -94,6 +95,9 @@ void PostProcess::Render( ID3D11DeviceContext* pd3dImmediateContext, ID3D11Shade
 	// restore depth stencil state
 	pd3dImmediateContext->OMSetDepthStencilState( savedDepthStencilState, savedStencilRef );
 	savedDepthStencilState->Release();
+
+	ID3D11ShaderResourceView* srvs[2] = { nullptr, nullptr };
+	pd3dImmediateContext->PSSetShaderResources( 0, 2, srvs );
 }
 
 
