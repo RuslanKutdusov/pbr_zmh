@@ -70,7 +70,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	float3 albedo = 1.0f;
 	if( InstanceData[ input.id ].UseMaterial )
 	{
-		albedo = pow( AlbedoTexture.Sample( LinearWrapSampler, input.uv ), 2.2f );
+		albedo = AlbedoTexture.Sample( LinearWrapSampler, input.uv );
 		metalness = MetalnessTexture.Sample( LinearWrapSampler, input.uv );
 		roughness = RoughnessTexture.Sample( LinearWrapSampler, input.uv );
 

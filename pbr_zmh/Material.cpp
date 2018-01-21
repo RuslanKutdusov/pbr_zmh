@@ -14,11 +14,11 @@ HRESULT Material::Load( ID3D11Device* pd3dDevice, const wchar_t* name )
 
 	memset( printfBuf, 0, printfBufSize * sizeof( wchar_t ) );
 	wsprintf( printfBuf, L"%s\\albedo.%s", name, extension );
-	hr = DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, printfBuf, &albedo, false );
+	hr = DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, printfBuf, &albedo, true );
 	if( FAILED( hr ) )
 	{
 		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, 
-			L"materials\\default\\albedo.dds", &albedo, false );
+			L"materials\\default\\albedo.dds", &albedo, true );
 	}
 
 	memset( printfBuf, 0, printfBufSize * sizeof( wchar_t ) );
