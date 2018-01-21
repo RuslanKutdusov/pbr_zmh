@@ -37,7 +37,7 @@ VSOutput vs_main( SdkMeshVertex input, uint id : SV_InstanceID )
 		output.pos = mul( float4( input.pos * scale + ViewPos, 1.0f ), ViewProjMatrix );
 
 	output.uv = input.tex;
-	output.normal = input.norm;
+	output.normal = input.normal;
 	output.id = id;
 
 	return output;

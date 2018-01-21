@@ -839,19 +839,23 @@ HRESULT CDXUTResourceCache::CreateTextureFromFile( ID3D11Device* pDevice, ID3D11
         }
     }
 
-    WCHAR ext[_MAX_EXT];
-    _wsplitpath_s( pSrcFile, nullptr, 0, nullptr, 0, nullptr, 0, ext, _MAX_EXT );
+	WCHAR str[MAX_PATH];
+    HRESULT hr = DXUTFindDXSDKMediaFileCch( str, MAX_PATH, pSrcFile );
+    if ( FAILED(hr) )
+        return hr;
 
-    HRESULT hr;
+    WCHAR ext[_MAX_EXT];
+    _wsplitpath_s( str, nullptr, 0, nullptr, 0, nullptr, 0, ext, _MAX_EXT );
+
     if ( _wcsicmp( ext, L".dds" ) == 0 )
     {
-        hr = DirectX::CreateDDSTextureFromFileEx( pDevice, pSrcFile, 0,
+        hr = DirectX::CreateDDSTextureFromFileEx( pDevice, str, 0,
                                                   D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, bSRGB,
                                                   nullptr, ppOutputRV, nullptr );
     }
     else
     {
-        hr = DirectX::CreateWICTextureFromFileEx( pDevice, pContext, pSrcFile, 0,
+        hr = DirectX::CreateWICTextureFromFileEx( pDevice, pContext, str, 0,
                                                   D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0, bSRGB,
                                                   nullptr, ppOutputRV );
     }
@@ -860,7 +864,7 @@ HRESULT CDXUTResourceCache::CreateTextureFromFile( ID3D11Device* pDevice, ID3D11
         return hr;
 
     DXUTCache_Texture entry;
-    wcscpy_s( entry.wszSource, MAX_PATH, pSrcFile );
+    wcscpy_s( entry.wszSource, MAX_PATH, str );
     entry.bSRGB = bSRGB;
     entry.pSRV11 = *ppOutputRV;
     entry.pSRV11->AddRef();

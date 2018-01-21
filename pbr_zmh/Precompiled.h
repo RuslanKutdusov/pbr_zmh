@@ -9,6 +9,7 @@
 #include "DDSTextureLoader.h"
 #include "Helpers.h"
 #include "RenderTarget.h"
+#include "Material.h"
 
 #include "SphereRenderer.h"
 #include "SkyRenderer.h"

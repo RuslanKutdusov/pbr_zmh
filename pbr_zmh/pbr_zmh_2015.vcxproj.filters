@@ -7,6 +7,7 @@
     <ClCompile Include="PostProcess.cpp" />
     <ClCompile Include="Helpers.cpp" />
     <ClCompile Include="RenderTarget.cpp" />
+    <ClCompile Include="Material.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
@@ -33,5 +34,6 @@
     <ClInclude Include="PostProcess.h" />
     <ClInclude Include="Helpers.h" />
     <ClInclude Include="RenderTarget.h" />
+    <ClInclude Include="Material.h" />
   </ItemGroup>
 </Project>

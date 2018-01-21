@@ -16,8 +16,10 @@ cbuffer GlobalParams : register( BRegister( GLOBAL_PARAMS_CB ) )
 struct SdkMeshVertex
 {
 	float3 pos : POSITION;
-	float3 norm : NORMAL;
+	float3 normal : NORMAL;
 	float2 tex : TEXTURE0;
+	float3 tan : TANGENT;
+	float3 binormal : BINORMAL;
 };
 
 TextureCube EnvironmentMap : register( TRegister( ENVIRONMENT_MAP ) );

@@ -375,6 +375,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Helpers.cpp" />
+    <ClCompile Include="Material.cpp" />
     <ClCompile Include="pbr_zmh.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Profile|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -398,6 +399,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Helpers.h" />
+    <ClInclude Include="Material.h" />
     <ClInclude Include="PostProcess.h" />
     <ClInclude Include="Precompiled.h" />
     <ClInclude Include="RenderTarget.h" />

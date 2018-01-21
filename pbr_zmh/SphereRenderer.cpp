@@ -72,8 +72,18 @@ void SphereRenderer::RenderDepthPass(InstanceParams* instancesParams, UINT numIn
 }
 
 
-void SphereRenderer::RenderLightPass( InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext )
+void SphereRenderer::RenderLightPass( InstanceParams* instancesParams, Material* material, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext )
 {
+	ID3D11ShaderResourceView* srv[ 4 ];
+	memset( srv, 0, sizeof( ID3D11ShaderResourceView* ) * 4 );
+	if( material )
+	{
+		srv[ 0 ] = material->albedo;
+		srv[ 1 ] = material->normal;
+		srv[ 2 ] = material->roughness;
+		srv[ 3 ] = material->metalness;
+	}
+	pd3dImmediateContext->PSSetShaderResources( 0, 4, srv );
 	Render( instancesParams, numInstances, m_ps, pd3dImmediateContext );
 }
 
@@ -111,6 +121,8 @@ HRESULT	SphereRenderer::ReloadShaders( ID3D11Device* pd3dDevice )
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXTURE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	int iNumElements = sizeof( elementsDesc ) / sizeof( D3D11_INPUT_ELEMENT_DESC );
 

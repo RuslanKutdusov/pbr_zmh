@@ -11,6 +11,8 @@ public:
 		float Roughness;
 		UINT EnableDirectLight;
 		UINT EnableIndirectLight;
+		UINT UseMaterial;
+		UINT padding[ 3 ];
 	};
 	const UINT MAX_INSTANCES = 128;
 
@@ -18,7 +20,7 @@ public:
 
 	HRESULT OnD3D11CreateDevice( ID3D11Device* pd3dDevice );
 	void	RenderDepthPass( InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
-	void    RenderLightPass( InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
+	void    RenderLightPass( InstanceParams* instancesParams, Material* material, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
 	void    OnD3D11DestroyDevice();
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 
