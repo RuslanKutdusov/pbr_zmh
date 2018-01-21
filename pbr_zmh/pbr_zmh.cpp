@@ -293,6 +293,8 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 	g_HUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, 0 );
 	g_HUD.SetSize( HUD_WIDTH, 170 );
 
+	g_resetSampling = true;
+
 	return S_OK;
 }
 
