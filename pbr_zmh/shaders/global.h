@@ -6,6 +6,7 @@ cbuffer GlobalParams : register( BRegister( GLOBAL_PARAMS_CB ) )
 	float4x4 ViewProjMatrix;
 	float4 ViewPos;
 	float4 LightDir;
+	float4 LightIrradiance;
 	uint FrameIdx;
 	uint TotalSamples;
 	uint SamplesInStep;

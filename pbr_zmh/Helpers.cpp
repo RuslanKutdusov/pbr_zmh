@@ -1,4 +1,5 @@
 #include "Precompiled.h"
+using namespace DirectX;
 
 
 void ErrorMessageBox( const char* text, ... )
@@ -56,4 +57,30 @@ HRESULT CompileShader( LPCWSTR path, const D3D_SHADER_MACRO* pDefines, LPCSTR pE
 	}
 
 	return S_OK;
+}
+
+
+float ToRad( float deg )
+{
+	return deg * XM_PI / 180.0f;
+}
+
+
+XMVECTOR ColorToVector( DWORD color )
+{
+	float r = ( float )( color & 255 ) / 255.0f;
+	float g = ( float )( ( color >> 8 ) & 255 ) / 255.0f;
+	float b = ( float )( ( color >> 16 ) & 255 ) / 255.0f;
+	return XMColorSRGBToRGB( XMVectorSet( r, g, b, 0.0f ) );
+}
+
+
+DWORD VectorToColor( const XMVECTOR& v )
+{
+	XMVECTOR srgb = XMColorRGBToSRGB( v );
+	DWORD ret = 0;
+	ret |= ( DWORD )( srgb.m128_f32[ 0 ] * 255.0f );
+	ret |= ( DWORD )( srgb.m128_f32[ 1 ] * 255.0f ) << 8;
+	ret |= ( DWORD )( srgb.m128_f32[ 2 ] * 255.0f ) << 16;
+	return ret;
 }

@@ -13,6 +13,7 @@ struct GlobalParams
 	XMMATRIX ViewProjMatrix;
 	XMVECTOR ViewPos;
 	XMVECTOR LightDir;
+	XMVECTOR LightIrradiance;
 	UINT FrameIdx;
 	UINT TotalSamples;
 	UINT SamplesInStep;
@@ -41,6 +42,9 @@ enum IDC
 	IDC_LIGHTVERT,
 	IDC_LIGHTHOR_STATIC,
 	IDC_LIGHTHOR,
+	IDC_LIGHT_IRRADIANCE_STATIC,
+	IDC_LIGHT_IRRADIANCE,
+	IDC_LIGHT_COLOR,
 	IDC_METALNESS_STATIC,
 	IDC_METALNESS,
 	IDC_ROUGHNESS_STATIC,
@@ -89,6 +93,8 @@ Material							g_material;
 // UI stuff
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
+float g_lightIrradiance = 1.0f;
+XMVECTOR g_lightColor = XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 float g_metalness = 1.0f;
 float g_roughness = 0.5f;
 bool g_useMaterial = false;
@@ -139,13 +145,6 @@ const wchar_t* g_materials[] = {
 //
 void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext);
 void InitApp();
-
-
-//
-float ToRad( float deg )
-{
-	return deg * XM_PI / 180.0f;
-}
 
 
 //--------------------------------------------------------------------------------------
@@ -437,6 +436,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		float lightDirVert = ToRad( ( float )g_lightDirVert );
 		float lightDirHor = ToRad( ( float )g_lightDirHor );
 		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
+		globalParams->LightIrradiance = XMVectorScale( g_lightColor, g_lightIrradiance );
 		globalParams->FrameIdx = g_frameIdx;
 		globalParams->TotalSamples = TotalSamples;
 		globalParams->SamplesInStep = SamplesInStep;
@@ -634,8 +634,14 @@ void InitApp()
 	g_HUD.AddSlider( IDC_LIGHTVERT, 0, iY += 24, HUD_WIDTH, 22, 0, 180, g_lightDirVert );
 
 	swprintf_s( str, MAX_PATH, L"Light hor: %d", g_lightDirHor );
-	g_HUD.AddStatic(IDC_LIGHTHOR_STATIC, str, 25, iY += 24, HUD_WIDTH, 22);
+	g_HUD.AddStatic(IDC_LIGHTHOR_STATIC, str, 0, iY += 24, HUD_WIDTH, 22);
 	g_HUD.AddSlider(IDC_LIGHTHOR, 0, iY += 24, HUD_WIDTH, 22, 0, 180, g_lightDirHor );
+
+	swprintf_s( str, MAX_PATH, L"Light irradiance( W/m2 ): %1.2f", g_lightIrradiance );
+	g_HUD.AddStatic( IDC_LIGHT_IRRADIANCE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
+	g_HUD.AddSlider( IDC_LIGHT_IRRADIANCE, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_lightIrradiance * 5.0f ));
+
+	g_HUD.AddButton( IDC_LIGHT_COLOR, L"Light color", 0, iY += 25, HUD_WIDTH, 23 );
 
 	swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
 	g_HUD.AddStatic( IDC_EXPOSURE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
@@ -710,6 +716,28 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_lightDirHor = g_HUD.GetSlider(IDC_LIGHTHOR)->GetValue();
 			swprintf_s(str, MAX_PATH, L"Light hor: %d", g_lightDirHor);
 			g_HUD.GetStatic(IDC_LIGHTHOR_STATIC)->SetText(str);
+			break;
+		}
+		case IDC_LIGHT_IRRADIANCE:
+		{
+			g_lightIrradiance = g_HUD.GetSlider( IDC_LIGHT_IRRADIANCE )->GetValue() / 5.0f;
+			swprintf_s( str, MAX_PATH, L"Light irradiance( W/m2 ): %1.2f", g_lightIrradiance );
+			g_HUD.GetStatic( IDC_LIGHT_IRRADIANCE_STATIC )->SetText( str );
+			break;
+		}
+		case IDC_LIGHT_COLOR:
+		{
+			CHOOSECOLOR cc;		
+			COLORREF acrCustClr[16];	
+			memset( &cc, 0, sizeof( cc ) );
+			cc.lStructSize = sizeof( cc );
+			cc.lpCustColors = ( LPDWORD )acrCustClr;
+			cc.rgbResult = VectorToColor( g_lightColor );
+			cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+			if( ChooseColor( &cc ) == TRUE ) 
+				g_lightColor = ColorToVector( cc.rgbResult );
+
 			break;
 		}
 		case IDC_METALNESS:

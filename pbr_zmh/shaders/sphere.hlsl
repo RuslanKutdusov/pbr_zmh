@@ -70,11 +70,11 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	float3 albedo = 1.0f;
 	if( InstanceData[ input.id ].UseMaterial )
 	{
-		albedo = AlbedoTexture.Sample( LinearWrapSampler, input.uv );
-		metalness = MetalnessTexture.Sample( LinearWrapSampler, input.uv );
-		roughness = RoughnessTexture.Sample( LinearWrapSampler, input.uv );
+		albedo = AlbedoTexture.Sample( LinearWrapSampler, input.uv ).rgb;
+		metalness = MetalnessTexture.Sample( LinearWrapSampler, input.uv ).r;
+		roughness = RoughnessTexture.Sample( LinearWrapSampler, input.uv ).r;
 
-		float3 normalTS = NormalTexture.Sample( LinearWrapSampler, input.uv ) * 2.0f - 1.0f;
+		float3 normalTS = NormalTexture.Sample( LinearWrapSampler, input.uv ).rgb * 2.0f - 1.0f;
 		normal = normalize( mul( normalTS, float3x3( tangent, binormal, normal ) ) );
 	}
 	else
@@ -85,12 +85,11 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	bool enableDirectLight = InstanceData[ input.id ].EnableDirectLight;
 	bool enableIndirectLight = InstanceData[ input.id ].EnableIndirectLight;
 	
-	float3 lightColor = 1.0f;
-	
 	PSOutput output = ( PSOutput )0;
 	if( enableDirectLight )
-		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, albedo ) * lightColor;
-	if( enableIndirectLight ) {
+		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, albedo ) * LightIrradiance.rgb;
+	if( enableIndirectLight ) 
+	{
 		uint2 random = RandVector_v2( pixelPos.xy );
 		output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, albedo, random );
 	}
