@@ -27,7 +27,7 @@ float3 FresnelTerm( float3 F0, float VoH ) {
 }
 
 
-float3 CalcLight( float3 N, float3 L, float3 V, float metalness, float roughness, float3 albedo )
+float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float roughness, float3 albedo )
 {
 	float oneMinusReflectivity = ( 1.0f - DIELECTRIC_SPEC ) * ( 1.0f - metalness );
 	float3 specularColor = lerp( DIELECTRIC_SPEC, albedo, metalness );
@@ -76,7 +76,7 @@ float3 ImportanceSampleGGX( float2 E, float Roughness, float3 N )
 }
 
 
-float4 GetEnvironmentLight( float3 N, float3 V, float metalness, float roughness, float3 albedo, uint2 random )
+float4 CalcIndirectLight( float3 N, float3 V, float metalness, float roughness, float3 albedo, uint2 random )
 {
 	if( SamplesProcessed >= TotalSamples )
 		return 0;

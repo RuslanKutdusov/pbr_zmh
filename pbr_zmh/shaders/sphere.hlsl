@@ -8,8 +8,8 @@ cbuffer InstanceParams : register( b1 )
 		float4x4 WorldMatrix;
 		float Metalness;
 		float Roughness;
-		bool DirectLight;
-		bool IndirectLight;
+		bool EnableDirectLight;
+		bool EnableIndirectLight;
 	} InstanceData[ 128 ];
 };
 
@@ -50,8 +50,8 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 {
 	float metalness = InstanceData[ input.id ].Metalness;
 	float roughness = InstanceData[ input.id ].Roughness;
-	float directLight = InstanceData[ input.id ].DirectLight;
-	float indirectLight = InstanceData[ input.id ].IndirectLight;
+	float enableDirectLight = InstanceData[ input.id ].EnableDirectLight;
+	float enableIndirectLight = InstanceData[ input.id ].EnableIndirectLight;
 
 	float3 normal = normalize( input.normal );
 	float3 view = normalize( ViewPos.xyz - input.worldPos );
@@ -60,11 +60,11 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	float3 lightColor = 1.0f;
 	
 	PSOutput output = ( PSOutput )0;
-	if( directLight )
-		output.directLight.rgb = CalcLight( normal, LightDir.xyz, view, metalness, roughness, albedo ) * lightColor;
-	if( indirectLight ) {
+	if( enableDirectLight )
+		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, albedo ) * lightColor;
+	if( enableIndirectLight ) {
 		uint2 random = RandVector_v2( pixelPos.xy );
-		output.indirectLight.rgba = GetEnvironmentLight( normal, view, metalness, roughness, albedo, random );
+		output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, albedo, random );
 	}
 
 	return output;

@@ -87,8 +87,8 @@ int g_lightDirVert = 45;
 int g_lightDirHor = 130;
 float g_metalness = 1.0f;
 float g_roughness = 0.5f;
-bool g_directLight = true;
-bool g_indirectLight = true;
+bool g_enableDirectLight = true;
+bool g_enableIndirectLight = true;
 float g_exposure = 1.0f;
 bool g_drawSky = true;
 SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
@@ -298,8 +298,8 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	oneSphereInstance.WorldMatrix = XMMatrixIdentity();
 	oneSphereInstance.Metalness = g_metalness;
 	oneSphereInstance.Roughness = g_roughness;
-	oneSphereInstance.DirectLight = g_directLight;
-	oneSphereInstance.IndirectLight = g_indirectLight;
+	oneSphereInstance.EnableDirectLight = g_enableDirectLight;
+	oneSphereInstance.EnableIndirectLight = g_enableIndirectLight;
 	int instanceCounter = 0;
 	for( int x = -5; x <= 5; x++ )
 	{
@@ -627,10 +627,10 @@ void InitApp()
 	g_HUD.AddSlider( IDC_ROUGHNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
 
 	swprintf_s( str, MAX_PATH, L"Enable direct light" );
-	g_HUD.AddCheckBox( IDC_DIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_directLight );
+	g_HUD.AddCheckBox( IDC_DIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_enableDirectLight );
 
 	swprintf_s( str, MAX_PATH, L"Enable indirect light" );
-	g_HUD.AddCheckBox( IDC_INDIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_indirectLight );
+	g_HUD.AddCheckBox( IDC_INDIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_enableIndirectLight );
 }
 
 
@@ -685,12 +685,12 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 		}
 		case IDC_DIRECT_LIGHT:
 		{
-			g_directLight = g_HUD.GetCheckBox( IDC_DIRECT_LIGHT )->GetChecked();
+			g_enableDirectLight = g_HUD.GetCheckBox( IDC_DIRECT_LIGHT )->GetChecked();
 			break;
 		}
 		case IDC_INDIRECT_LIGHT:
 		{
-			g_indirectLight = g_HUD.GetCheckBox( IDC_INDIRECT_LIGHT )->GetChecked();
+			g_enableIndirectLight = g_HUD.GetCheckBox( IDC_INDIRECT_LIGHT )->GetChecked();
 			g_resetSampling = true;
 			break;
 		}

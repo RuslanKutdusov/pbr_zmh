@@ -9,8 +9,8 @@ public:
 		DirectX::XMMATRIX WorldMatrix;
 		float Metalness;
 		float Roughness;
-		UINT DirectLight;
-		UINT IndirectLight;
+		UINT EnableDirectLight;
+		UINT EnableIndirectLight;
 	};
 	const UINT MAX_INSTANCES = 128;
 
