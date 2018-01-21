@@ -45,6 +45,8 @@ enum IDC
 	IDC_METALNESS,
 	IDC_ROUGHNESS_STATIC,
 	IDC_ROUGHNESS,
+	IDC_USE_MATERIAL,
+	IDC_MATERIAL,
 	IDC_DIRECT_LIGHT,
 	IDC_INDIRECT_LIGHT,
 	IDC_EXPOSURE_STATIC,
@@ -82,21 +84,25 @@ PostProcess							g_postProcess;
 // lighting render targets 
 RenderTarget						g_directLightRenderTarget;
 RenderTarget						g_indirectLightRenderTarget;
+Material							g_material;
 
+// UI stuff
 int g_lightDirVert = 45;
 int g_lightDirHor = 130;
 float g_metalness = 1.0f;
 float g_roughness = 0.5f;
+bool g_useMaterial = false;
 bool g_enableDirectLight = true;
 bool g_enableIndirectLight = true;
 float g_exposure = 1.0f;
 bool g_drawSky = true;
 SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
+
+// Image base lighting importance sampling stuff
 UINT g_frameIdx = 0;
 UINT g_samplesProcessed = 0;
 bool g_resetSampling = false;
 XMMATRIX g_lastFrameViewProj;
-
 const UINT TotalSamples = 128;
 const UINT SamplesInStep = 16;
 
@@ -106,6 +112,27 @@ const wchar_t* g_skyTextureFiles[] = {
 	L"HDRs\\rnl_cross.dds",
 	L"HDRs\\stpeters_cross.dds",
 	L"HDRs\\uffizi_cross.dds",
+};
+
+const wchar_t* g_materials[] = {
+	L"materials\\default",
+	L"materials\\Brick_baked",
+	L"materials\\Brick_Beige",
+	L"materials\\Brick_Cinder",
+	L"materials\\Brick_Concrete",
+	L"materials\\Brick_Yellow",
+	L"materials\\Concrete_Shimizu",
+	L"materials\\Concrete_Tadao",
+	L"materials\\copper-oxidized",
+	L"materials\\copper-rock",
+	L"materials\\copper-scuffed",
+	L"materials\\greasy-pan",
+	L"materials\\OldPlaster_00",
+	L"materials\\OldPlaster_01",
+	L"materials\\rustediron",
+	L"materials\\streakedmetal",
+	L"materials\\T_Paint_Black",
+	L"materials\\T_Tile_White",
 };
 
 
@@ -234,6 +261,8 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	blendDesc.RenderTarget[ 1 ].RenderTargetWriteMask = 0x0f;
 	V_RETURN( pd3dDevice->CreateBlendState( &blendDesc, &g_doubleRtBlendState ) );
 
+	g_material.Load( pd3dDevice, L"materials\\default" );
+
     return S_OK;
 }
 
@@ -300,6 +329,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	oneSphereInstance.Roughness = g_roughness;
 	oneSphereInstance.EnableDirectLight = g_enableDirectLight;
 	oneSphereInstance.EnableIndirectLight = g_enableIndirectLight;
+	oneSphereInstance.UseMaterial = g_useMaterial;
 	int instanceCounter = 0;
 	for( int x = -5; x <= 5; x++ )
 	{
@@ -309,6 +339,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 			multSphereInstances[ instanceCounter ].Metalness = ( x + 5 ) / 10.0f;
 			multSphereInstances[ instanceCounter ].Roughness = ( z + 5 ) / 10.0f;
 			multSphereInstances[ instanceCounter ].WorldMatrix = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
+			multSphereInstances[ instanceCounter ].UseMaterial = false;
 			instanceCounter++;
 		}
 	}
@@ -348,7 +379,10 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 		if( g_drawSky )
 			g_skyRenderer.RenderLightPass( pd3dImmediateContext );
 		if( g_sceneType == SCENE_ONE_SPHERE || g_sceneType == SCENE_MULTIPLE_SPHERES )
-			g_sphereRenderer.RenderLightPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
+		{
+			Material* material = g_useMaterial ? &g_material : nullptr;
+			g_sphereRenderer.RenderLightPass( sphereInstances, material, numSphereInstances, pd3dImmediateContext );
+		}
 
 		DXUT_EndPerfEvent();
 	}
@@ -468,6 +502,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_linearWrapSamplerState );
 	g_directLightRenderTarget.Release();
 	g_indirectLightRenderTarget.Release();
+	g_material.Release();
 
 	g_sphereRenderer.OnD3D11DestroyDevice();
 	g_skyRenderer.OnD3D11DestroyDevice();
@@ -626,6 +661,14 @@ void InitApp()
 	g_HUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
 	g_HUD.AddSlider( IDC_ROUGHNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
 
+	swprintf_s( str, MAX_PATH, L"Use material" );
+	g_HUD.AddCheckBox( IDC_USE_MATERIAL, str, 0, iY += 24, HUD_WIDTH, 22, g_useMaterial );
+
+	CDXUTComboBox* materialComboxBox;
+	g_HUD.AddComboBox( IDC_MATERIAL, 0, iY += 24, HUD_WIDTH, 22, 0, false, &materialComboxBox );
+	for (size_t i = 0; i < sizeof( g_materials ) / sizeof( wchar_t* ); i++ )
+		materialComboxBox->AddItem( g_materials[ i ], (void*)g_materials[ i ] );
+
 	swprintf_s( str, MAX_PATH, L"Enable direct light" );
 	g_HUD.AddCheckBox( IDC_DIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_enableDirectLight );
 
@@ -682,6 +725,18 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			g_HUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
 			g_resetSampling = true;
 			break;
+		}
+		case IDC_USE_MATERIAL:
+		{
+			g_useMaterial = g_HUD.GetCheckBox( IDC_USE_MATERIAL )->GetChecked();
+			g_resetSampling = true;
+			break;
+		}
+		case IDC_MATERIAL:
+		{
+			const wchar_t* filename = ( const wchar_t* )g_HUD.GetComboBox( IDC_MATERIAL )->GetSelectedData();
+			g_material.Load( DXUTGetD3D11Device(), filename );
+			g_resetSampling = true;
 		}
 		case IDC_DIRECT_LIGHT:
 		{
