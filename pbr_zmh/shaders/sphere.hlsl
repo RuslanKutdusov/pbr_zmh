@@ -8,10 +8,11 @@ cbuffer InstanceParams : register( b1 )
 		float4x4 WorldMatrix;
 		float Metalness;
 		float Roughness;
+		float4 Albedo;
 		bool EnableDirectLight;
 		bool EnableIndirectLight;
 		bool UseMaterial;
-		bool3 padding;
+		bool padding;
 	} InstanceData[ 128 ];
 };
 Texture2D AlbedoTexture : register( t0 );
@@ -79,6 +80,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	}
 	else
 	{
+		albedo = InstanceData[ input.id ].Albedo;
 		metalness = InstanceData[ input.id ].Metalness;
 		roughness = InstanceData[ input.id ].Roughness;
 	}

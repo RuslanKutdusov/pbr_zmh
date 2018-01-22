@@ -9,10 +9,12 @@ public:
 		DirectX::XMMATRIX WorldMatrix;
 		float Metalness;
 		float Roughness;
+		float padding0[ 2 ];
+		DirectX::XMVECTOR Albedo;
 		UINT EnableDirectLight;
 		UINT EnableIndirectLight;
 		UINT UseMaterial;
-		UINT padding[ 3 ];
+		UINT padding1[ 1 ];
 	};
 	const UINT MAX_INSTANCES = 128;
 

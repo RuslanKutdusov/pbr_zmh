@@ -49,6 +49,7 @@ enum IDC
 	IDC_METALNESS,
 	IDC_ROUGHNESS_STATIC,
 	IDC_ROUGHNESS,
+	IDC_ALBEDO,
 	IDC_USE_MATERIAL,
 	IDC_MATERIAL,
 	IDC_DIRECT_LIGHT,
@@ -97,6 +98,7 @@ float g_lightIrradiance = 1.0f;
 XMVECTOR g_lightColor = XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 float g_metalness = 1.0f;
 float g_roughness = 0.5f;
+XMVECTOR g_albedo = XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 bool g_useMaterial = false;
 bool g_enableDirectLight = true;
 bool g_enableIndirectLight = true;
@@ -328,6 +330,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	oneSphereInstance.WorldMatrix = XMMatrixIdentity();
 	oneSphereInstance.Metalness = g_metalness;
 	oneSphereInstance.Roughness = g_roughness;
+	oneSphereInstance.Albedo = g_albedo;
 	oneSphereInstance.EnableDirectLight = g_enableDirectLight;
 	oneSphereInstance.EnableIndirectLight = g_enableIndirectLight;
 	oneSphereInstance.UseMaterial = g_useMaterial;
@@ -669,6 +672,8 @@ void InitApp()
 	g_HUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
 	g_HUD.AddSlider( IDC_ROUGHNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
 
+	g_HUD.AddButton( IDC_ALBEDO, L"Albedo", 0, iY += 25, HUD_WIDTH, 23 );
+
 	swprintf_s( str, MAX_PATH, L"Use material" );
 	g_HUD.AddCheckBox( IDC_USE_MATERIAL, str, 0, iY += 24, HUD_WIDTH, 22, g_useMaterial );
 
@@ -754,6 +759,23 @@ void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, vo
 			swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
 			g_HUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
 			g_resetSampling = true;
+			break;
+		}
+		case IDC_ALBEDO:
+		{
+			CHOOSECOLOR cc;
+			COLORREF acrCustClr[ 16 ];
+			memset( &cc, 0, sizeof( cc ) );
+			cc.lStructSize = sizeof( cc );
+			cc.lpCustColors = ( LPDWORD )acrCustClr;
+			cc.rgbResult = VectorToColor( g_albedo );
+			cc.Flags = CC_FULLOPEN | CC_RGBINIT;
+
+			if( ChooseColor( &cc ) == TRUE ) {
+				g_albedo = ColorToVector( cc.rgbResult );
+				g_resetSampling = true;
+			}
+
 			break;
 		}
 		case IDC_USE_MATERIAL:
