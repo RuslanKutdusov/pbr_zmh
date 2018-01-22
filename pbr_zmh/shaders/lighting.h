@@ -4,10 +4,16 @@ static const float DIELECTRIC_SPEC = 0.04f;
 static const float PI = 3.14159265359f;
 static const float INV_PI = 0.31830988618f;
 
+
+float PerceptualRoughnessToRoughness( float perceptualRoughness ) {
+	return perceptualRoughness * perceptualRoughness;
+}
+
+
 // Ref: http://jcgt.org/published/0003/02/03/paper.pdf
 float SmithJointGGXVisibilityTerm( float NoL, float NoV, float roughness ) {
 	// Approximised version
-	float a = sqrt( roughness );
+	float a = roughness;
 	float lambdaV = NoL * ( NoV * ( 1.0f - a ) + a );
 	float lambdaL = NoV * ( NoL * ( 1.0f - a ) + a );
 	return 0.5f * rcp( lambdaV + lambdaL );
@@ -27,12 +33,13 @@ float3 FresnelTerm( float3 F0, float VoH ) {
 }
 
 
-float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float roughness, float3 albedo )
+float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float perceptualRoughness, float3 albedo )
 {
 	float oneMinusReflectivity = ( 1.0f - DIELECTRIC_SPEC ) * ( 1.0f - metalness );
 	float3 specularColor = lerp( DIELECTRIC_SPEC, albedo, metalness );
 	albedo *= oneMinusReflectivity;
 	
+	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
 	roughness = max(roughness, 1e-06);
 
 	float3 H = normalize( V + L );
@@ -56,8 +63,7 @@ float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float rou
 
 float3 ImportanceSampleGGX( float2 E, float Roughness, float3 N )
 {
-	float m = Roughness * Roughness;
-	float m2 = m * m;
+	float m2 = Roughness * Roughness;
 
 	float Phi = 2 * PI * E.x;
 	float CosTheta = sqrt( (1 - E.y) / ( 1 + (m2 - 1) * E.y ) );
@@ -76,13 +82,15 @@ float3 ImportanceSampleGGX( float2 E, float Roughness, float3 N )
 }
 
 
-float4 CalcIndirectLight( float3 N, float3 V, float metalness, float roughness, float3 albedo, uint2 random )
+float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualRoughness, float3 albedo, uint2 random )
 {
 	if( SamplesProcessed >= TotalSamples )
 		return 0;
 
 	float oneMinusReflectivity = ( 1.0f - DIELECTRIC_SPEC ) * ( 1.0f - metalness );
 	float3 specularColor = lerp( DIELECTRIC_SPEC, albedo, metalness );
+
+	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
 
 	uint cubeWidth, cubeHeight;
     EnvironmentMap.GetDimensions(cubeWidth, cubeHeight);
