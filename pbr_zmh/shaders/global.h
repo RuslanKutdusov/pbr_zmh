@@ -11,6 +11,9 @@ cbuffer GlobalParams : register( BRegister( GLOBAL_PARAMS_CB ) )
 	uint TotalSamples;
 	uint SamplesInStep;
 	uint SamplesProcessed;
+	bool EnableDirectLight;
+	bool EnableIndirectLight;
+	bool2 padding;
 };
 
 

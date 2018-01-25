@@ -11,10 +11,8 @@ public:
 		float Roughness;
 		float padding0[ 2 ];
 		DirectX::XMVECTOR Albedo;
-		UINT EnableDirectLight;
-		UINT EnableIndirectLight;
 		UINT UseMaterial;
-		UINT padding1[ 1 ];
+		UINT padding1[ 3 ];
 	};
 	const UINT MAX_INSTANCES = 128;
 

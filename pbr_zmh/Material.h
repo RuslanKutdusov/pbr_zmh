@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 
 struct Material
@@ -10,4 +11,5 @@ struct Material
 	ID3D11ShaderResourceView* normal = nullptr;
 	ID3D11ShaderResourceView* roughness = nullptr;
 	ID3D11ShaderResourceView* metalness = nullptr;
+	std::wstring name;
 };

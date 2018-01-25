@@ -388,6 +388,7 @@
     <ClCompile Include="RenderTarget.cpp" />
     <ClCompile Include="SkyRenderer.cpp" />
     <ClCompile Include="SphereRenderer.cpp" />
+    <ClCompile Include="UI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DXUT\Core\DXUT_2015.vcxproj">
@@ -406,6 +407,7 @@
     <CLInclude Include="resource.h" />
     <ClInclude Include="SkyRenderer.h" />
     <ClInclude Include="SphereRenderer.h" />
+    <ClInclude Include="UI.h" />
     <ResourceCompile Include="pbr_zmh.rc" />
   </ItemGroup>
   <ItemGroup>

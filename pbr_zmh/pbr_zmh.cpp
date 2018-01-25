@@ -18,51 +18,10 @@ struct GlobalParams
 	UINT TotalSamples;
 	UINT SamplesInStep;
 	UINT SamplesProcessed;
+	UINT EnableDirectLight;
+	UINT EnableIndirectLight;
+	UINT padding[ 2 ];
 };
-
-
-enum SCENE_TYPE
-{
-	SCENE_ONE_SPHERE = 0,
-	SCENE_MULTIPLE_SPHERES,
-	//SCENE_SPONZA
-
-	SCENE_TYPE_COUNT
-};
-
-
-//--------------------------------------------------------------------------------------
-// UI control IDs
-//--------------------------------------------------------------------------------------
-enum IDC
-{
-	IDC_CHANGEDEVICE = 1,
-	IDC_RELOAD_SHADERS,
-	IDC_LIGHTVERT_STATIC,
-	IDC_LIGHTVERT,
-	IDC_LIGHTHOR_STATIC,
-	IDC_LIGHTHOR,
-	IDC_LIGHT_IRRADIANCE_STATIC,
-	IDC_LIGHT_IRRADIANCE,
-	IDC_LIGHT_COLOR,
-	IDC_METALNESS_STATIC,
-	IDC_METALNESS,
-	IDC_ROUGHNESS_STATIC,
-	IDC_ROUGHNESS,
-	IDC_ALBEDO,
-	IDC_USE_MATERIAL,
-	IDC_MATERIAL,
-	IDC_DIRECT_LIGHT,
-	IDC_INDIRECT_LIGHT,
-	IDC_EXPOSURE_STATIC,
-	IDC_EXPOSURE,
-	IDC_DRAW_SKY,
-	IDC_SELECT_SKY_TEXTURE,
-	IDC_SCENE_TYPE,
-};
-
-
-const int HUD_WIDTH = 250;
 
 
 //--------------------------------------------------------------------------------------
@@ -70,10 +29,6 @@ const int HUD_WIDTH = 250;
 //--------------------------------------------------------------------------------------
 CModelViewerCamera                  g_modelViewerCamera;     // A model viewing camera
 CFirstPersonCamera					g_firstPersonCamera;
-CDXUTDialogResourceManager          g_DialogResourceManager; // manager for shared resources of dialogs
-CD3DSettingsDlg                     g_D3DSettingsDlg;       // Device settings dialog
-CDXUTDialog                         g_HUD;                  // manages the 3D UI
-CDXUTTextHelper*                    g_pTxtHelper = nullptr;
 
 ID3D11Buffer*						g_globalParamsBuf = nullptr;
 ID3D11DepthStencilState*			g_depthPassDepthStencilState = nullptr;
@@ -91,21 +46,6 @@ RenderTarget						g_directLightRenderTarget;
 RenderTarget						g_indirectLightRenderTarget;
 Material							g_material;
 
-// UI stuff
-int g_lightDirVert = 45;
-int g_lightDirHor = 130;
-float g_lightIrradiance = 1.0f;
-XMVECTOR g_lightColor = XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
-float g_metalness = 1.0f;
-float g_roughness = 0.5f;
-XMVECTOR g_albedo = XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
-bool g_useMaterial = false;
-bool g_enableDirectLight = true;
-bool g_enableIndirectLight = true;
-float g_exposure = 1.0f;
-bool g_drawSky = true;
-SCENE_TYPE g_sceneType = SCENE_ONE_SPHERE;
-
 // Image base lighting importance sampling stuff
 UINT g_frameIdx = 0;
 UINT g_samplesProcessed = 0;
@@ -113,40 +53,6 @@ bool g_resetSampling = false;
 XMMATRIX g_lastFrameViewProj;
 const UINT TotalSamples = 128;
 const UINT SamplesInStep = 16;
-
-const wchar_t* g_skyTextureFiles[] = {
-	L"HDRs\\galileo_cross.dds",
-	L"HDRs\\grace_cross.dds",
-	L"HDRs\\rnl_cross.dds",
-	L"HDRs\\stpeters_cross.dds",
-	L"HDRs\\uffizi_cross.dds",
-};
-
-const wchar_t* g_materials[] = {
-	L"materials\\default",
-	L"materials\\Brick_baked",
-	L"materials\\Brick_Beige",
-	L"materials\\Brick_Cinder",
-	L"materials\\Brick_Concrete",
-	L"materials\\Brick_Yellow",
-	L"materials\\Concrete_Shimizu",
-	L"materials\\Concrete_Tadao",
-	L"materials\\copper-oxidized",
-	L"materials\\copper-rock",
-	L"materials\\copper-scuffed",
-	L"materials\\greasy-pan",
-	L"materials\\OldPlaster_00",
-	L"materials\\OldPlaster_01",
-	L"materials\\rustediron",
-	L"materials\\streakedmetal",
-	L"materials\\T_Paint_Black",
-	L"materials\\T_Tile_White",
-};
-
-
-//
-void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext);
-void InitApp();
 
 
 //--------------------------------------------------------------------------------------
@@ -177,9 +83,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	HRESULT hr;
 
 	auto pd3dImmediateContext = DXUTGetD3D11DeviceContext();
-	V_RETURN(g_DialogResourceManager.OnD3D11CreateDevice(pd3dDevice, pd3dImmediateContext));
-	V_RETURN(g_D3DSettingsDlg.OnD3D11CreateDevice(pd3dDevice));
-	g_pTxtHelper = new CDXUTTextHelper(pd3dDevice, pd3dImmediateContext, &g_DialogResourceManager, 15);
+	V_RETURN( UIOnDeviceCreate( pd3dDevice, pd3dImmediateContext ) );
 
 	D3D11_BUFFER_DESC Desc;
 	Desc.Usage = D3D11_USAGE_DYNAMIC;
@@ -199,7 +103,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 
 	V_RETURN( g_sphereRenderer.OnD3D11CreateDevice( pd3dDevice ) );
 	V_RETURN( g_skyRenderer.OnD3D11CreateDevice( pd3dDevice ) );
-	V_RETURN( g_skyRenderer.LoadSkyTexture( pd3dDevice, g_skyTextureFiles[ 0 ] ) );
+	V_RETURN( g_skyRenderer.LoadSkyTexture( pd3dDevice, GetGlobalControls().skyTexture ) );
 	V_RETURN( g_postProcess.OnD3D11CreateDevice( pd3dDevice ) );
 
 	D3D11_RASTERIZER_DESC rasterDesc;
@@ -281,9 +185,6 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 	g_indirectLightRenderTarget.Init(pd3dDevice, DXGI_FORMAT_R32G32B32A32_FLOAT, pBackBufferSurfaceDesc->Width,
 		pBackBufferSurfaceDesc->Height, "IndirectLightRT");
 
-	V_RETURN(g_DialogResourceManager.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
-	V_RETURN(g_D3DSettingsDlg.OnD3D11ResizedSwapChain(pd3dDevice, pBackBufferSurfaceDesc));
-
 	// Setup the camera's projection parameters
 	float fAspectRatio = pBackBufferSurfaceDesc->Width / (FLOAT)pBackBufferSurfaceDesc->Height;
 	g_modelViewerCamera.SetProjParams( 53.4f * ( XM_PI / 180.0f ), fAspectRatio, 0.1f, 3000.0f );
@@ -291,10 +192,9 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 	g_modelViewerCamera.SetButtonMasks( 0, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON | MOUSE_LEFT_BUTTON );
 	g_firstPersonCamera.SetProjParams( 53.4f * ( XM_PI / 180.0f ), fAspectRatio, 0.1f, 3000.0f );
 
-	g_HUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, 0 );
-	g_HUD.SetSize( HUD_WIDTH, 170 );
-
 	g_resetSampling = true;
+
+	V_RETURN( UIOnResizedSwapChain( pd3dDevice, pBackBufferSurfaceDesc ) );
 
 	return S_OK;
 }
@@ -306,7 +206,7 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext )
 {
 	// Update the camera's position based on user input 
-	if( g_sceneType == SCENE_ONE_SPHERE )
+	if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE )
 		g_modelViewerCamera.FrameMove( fElapsedTime );
 	else
 		g_firstPersonCamera.FrameMove( fElapsedTime );
@@ -328,27 +228,25 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	SphereRenderer::InstanceParams oneSphereInstance;
 	SphereRenderer::InstanceParams multSphereInstances[ 11 * 11 ];
 	oneSphereInstance.WorldMatrix = XMMatrixIdentity();
-	oneSphereInstance.Metalness = g_metalness;
-	oneSphereInstance.Roughness = g_roughness;
-	oneSphereInstance.Albedo = g_albedo;
-	oneSphereInstance.EnableDirectLight = g_enableDirectLight;
-	oneSphereInstance.EnableIndirectLight = g_enableIndirectLight;
-	oneSphereInstance.UseMaterial = g_useMaterial;
+	oneSphereInstance.Metalness = GetOneSphereSceneControls().metalness;
+	oneSphereInstance.Roughness = GetOneSphereSceneControls().roughness;
+	oneSphereInstance.Albedo = GetOneSphereSceneControls().albedo;
+	oneSphereInstance.UseMaterial = GetOneSphereSceneControls().useMaterial;
 	int instanceCounter = 0;
 	for( int x = -5; x <= 5; x++ )
 	{
 		for( int z = -5; z <= 5; z++ )
 		{
 			multSphereInstances[ instanceCounter ] = oneSphereInstance;
+			multSphereInstances[ instanceCounter ].WorldMatrix = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
 			multSphereInstances[ instanceCounter ].Metalness = ( x + 5 ) / 10.0f;
 			multSphereInstances[ instanceCounter ].Roughness = ( z + 5 ) / 10.0f;
-			multSphereInstances[ instanceCounter ].WorldMatrix = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
 			multSphereInstances[ instanceCounter ].UseMaterial = false;
 			instanceCounter++;
 		}
 	}
-	SphereRenderer::InstanceParams* sphereInstances = g_sceneType == SCENE_ONE_SPHERE ? &oneSphereInstance : &multSphereInstances[ 0 ];
-	UINT numSphereInstances = g_sceneType == SCENE_ONE_SPHERE ? 1 : 11 * 11;
+	SphereRenderer::InstanceParams* sphereInstances = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? &oneSphereInstance : &multSphereInstances[ 0 ];
+	UINT numSphereInstances = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? 1 : 11 * 11;
 
 	// depth pass
 	{
@@ -358,9 +256,9 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 		pd3dImmediateContext->ClearDepthStencilView( DXUTGetD3D11DepthStencilView(), D3D11_CLEAR_DEPTH, 1.0, 0 );
 		pd3dImmediateContext->OMSetDepthStencilState( g_depthPassDepthStencilState, 0 );
 
-		if( g_drawSky )
+		if( GetGlobalControls().drawSky )
 			g_skyRenderer.RenderDepthPass( pd3dImmediateContext );
-		if( g_sceneType == SCENE_ONE_SPHERE || g_sceneType == SCENE_MULTIPLE_SPHERES )
+		if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE || GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
 			g_sphereRenderer.RenderDepthPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
 
 		DXUT_EndPerfEvent();
@@ -380,11 +278,11 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 		pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
 		pd3dImmediateContext->OMSetBlendState( g_doubleRtBlendState, nullptr, ~0u );
 
-		if( g_drawSky )
+		if( GetGlobalControls().drawSky )
 			g_skyRenderer.RenderLightPass( pd3dImmediateContext );
-		if( g_sceneType == SCENE_ONE_SPHERE || g_sceneType == SCENE_MULTIPLE_SPHERES )
+		if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE || GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
 		{
-			Material* material = g_useMaterial ? &g_material : nullptr;
+			Material* material = GetOneSphereSceneControls().useMaterial ? &g_material : nullptr;
 			g_sphereRenderer.RenderLightPass( sphereInstances, material, numSphereInstances, pd3dImmediateContext );
 		}
 
@@ -406,7 +304,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 
 	auto pRTV = DXUTGetD3D11RenderTargetView();
 	auto pDSV = DXUTGetD3D11DepthStencilView();
-	CBaseCamera* currentCamera = g_sceneType == SCENE_ONE_SPHERE ? (CBaseCamera*)&g_modelViewerCamera : (CBaseCamera*)&g_firstPersonCamera;
+	CBaseCamera* currentCamera = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? (CBaseCamera*)&g_modelViewerCamera : (CBaseCamera*)&g_firstPersonCamera;
 	XMMATRIX viewProj = XMMatrixMultiply(currentCamera->GetViewMatrix(), currentCamera->GetProjMatrix());
 
 	if( g_samplesProcessed == 0 || g_resetSampling || memcmp( &viewProj, &g_lastFrameViewProj, sizeof( XMMATRIX ) ) != 0 ) {
@@ -417,9 +315,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	}
 
 	// If the settings dialog is being shown, then render it instead of rendering the app's scene
-	if (g_D3DSettingsDlg.IsActive())
+	if( GetD3DSettingsDlg().IsActive() )
 	{
-		g_D3DSettingsDlg.OnRender(fElapsedTime);
+		GetD3DSettingsDlg().OnRender( fElapsedTime );
 		return;
 	}
 
@@ -436,14 +334,16 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		GlobalParams* globalParams = ( GlobalParams* )mappedSubres.pData;
 		globalParams->ViewProjMatrix = viewProj;
 		globalParams->ViewPos = currentCamera->GetEyePt();
-		float lightDirVert = ToRad( ( float )g_lightDirVert );
-		float lightDirHor = ToRad( ( float )g_lightDirHor );
+		float lightDirVert = ToRad( ( float )GetGlobalControls().lightDirVert );
+		float lightDirHor = ToRad( ( float )GetGlobalControls().lightDirHor );
 		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
-		globalParams->LightIrradiance = XMVectorScale( g_lightColor, g_lightIrradiance );
+		globalParams->LightIrradiance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIrradiance );
 		globalParams->FrameIdx = g_frameIdx;
 		globalParams->TotalSamples = TotalSamples;
 		globalParams->SamplesInStep = SamplesInStep;
 		globalParams->SamplesProcessed = g_samplesProcessed;
+		globalParams->EnableDirectLight = GetGlobalControls().enableDirectLight;
+		globalParams->EnableIndirectLight = GetGlobalControls().enableIndirectLight;
 
 		pd3dImmediateContext->Unmap( g_globalParamsBuf, 0 );
 
@@ -463,18 +363,10 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->OMSetRenderTargets( 2, rtv, pDSV );
 	pd3dImmediateContext->ClearRenderTargetView( pRTV, Colors::MidnightBlue );
 	pd3dImmediateContext->ClearDepthStencilView( pDSV, D3D11_CLEAR_DEPTH, 1.0, 0 );
-	g_postProcess.Render( pd3dImmediateContext, g_directLightRenderTarget.srv, g_indirectLightRenderTarget.srv, g_exposure );
+	g_postProcess.Render( pd3dImmediateContext, g_directLightRenderTarget.srv, g_indirectLightRenderTarget.srv, GetGlobalControls().exposure );
 	DXUT_EndPerfEvent();
 
-	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"HUD / Stats");
-	g_HUD.OnRender(fElapsedTime);
-	g_pTxtHelper->Begin();
-	g_pTxtHelper->SetInsertionPos( 2, 0 );
-	g_pTxtHelper->SetForegroundColor( Colors::Yellow );
-	g_pTxtHelper->DrawTextLine( DXUTGetFrameStats( DXUTIsVsyncEnabled() ) );
-	g_pTxtHelper->DrawTextLine( DXUTGetDeviceStats() );
-	g_pTxtHelper->End();
-	DXUT_EndPerfEvent();
+	UIRender( pd3dDevice, pd3dImmediateContext, fElapsedTime );
 }
 
 
@@ -483,7 +375,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 {
-	g_DialogResourceManager.OnD3D11ReleasingSwapChain();
+	UIOnReleasingSwapChain();
 	g_directLightRenderTarget.Release();
 	g_indirectLightRenderTarget.Release();
 }
@@ -494,9 +386,7 @@ void CALLBACK OnD3D11ReleasingSwapChain( void* pUserContext )
 //--------------------------------------------------------------------------------------
 void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 {
-	g_DialogResourceManager.OnD3D11DestroyDevice();
-	g_D3DSettingsDlg.OnD3D11DestroyDevice();
-	SAFE_DELETE(g_pTxtHelper);
+	UIOnDestroyDevice();
 	DXUTGetGlobalResourceCache().OnDestroyDevice();
 	SAFE_RELEASE( g_globalParamsBuf );
 	SAFE_RELEASE( g_rasterizerState );
@@ -521,25 +411,11 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 LRESULT CALLBACK MsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam,
                           bool* pbNoFurtherProcessing, void* pUserContext )
 {
-	// Pass messages to dialog resource manager calls so GUI state is updated correctly
-	*pbNoFurtherProcessing = g_DialogResourceManager.MsgProc(hWnd, uMsg, wParam, lParam);
-	if (*pbNoFurtherProcessing)
-		return 0;
-
-	// Pass messages to settings dialog if its active
-	if (g_D3DSettingsDlg.IsActive())
-	{
-		g_D3DSettingsDlg.MsgProc(hWnd, uMsg, wParam, lParam);
-		return 0;
-	}
-
-	// Give the dialogs a chance to handle the message first
-	*pbNoFurtherProcessing = g_HUD.MsgProc(hWnd, uMsg, wParam, lParam);
-	if (*pbNoFurtherProcessing)
+	if( !UIMsgProc( hWnd, uMsg, wParam, lParam, pbNoFurtherProcessing, pUserContext ) )
 		return 0;
 
 	// Pass all remaining windows messages to camera so it can respond to user input
-	if( g_sceneType == SCENE_ONE_SPHERE )
+	if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE )
 		g_modelViewerCamera.HandleMessages( hWnd, uMsg, wParam, lParam );
 	else 
 		g_firstPersonCamera.HandleMessages( hWnd, uMsg, wParam, lParam );
@@ -575,6 +451,36 @@ bool CALLBACK OnDeviceRemoved( void* pUserContext )
 }
 
 
+void OnShaderReloadCallback()
+{
+	g_skyRenderer.ReloadShaders( DXUTGetD3D11Device() );
+	g_sphereRenderer.ReloadShaders( DXUTGetD3D11Device() );
+	g_postProcess.ReloadShaders( DXUTGetD3D11Device() );
+	g_resetSampling = true;
+}
+
+
+
+void OnResetSamplingCallback()
+{
+	g_resetSampling = true;
+}
+
+
+void OnMaterialChangeCallback()
+{
+	g_material.Load( DXUTGetD3D11Device(), GetOneSphereSceneControls().material );
+	g_resetSampling = true;
+}
+
+
+void OnSkyTextureChangeCallback()
+{
+	g_skyRenderer.LoadSkyTexture( DXUTGetD3D11Device(), GetGlobalControls().skyTexture );
+	g_resetSampling = true;
+}
+
+
 //--------------------------------------------------------------------------------------
 // Initialize everything and go into a render loop
 //--------------------------------------------------------------------------------------
@@ -605,7 +511,12 @@ int WINAPI wWinMain( _In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     DXUTSetCallbackD3D11DeviceDestroyed( OnD3D11DestroyDevice );
 
     // Perform any application-level initialization here
-	InitApp();
+	UIInit();
+	SetOnShaderReloadCallback( &OnShaderReloadCallback );
+	SetOnResetSamplingCallback( &OnResetSamplingCallback );
+	SetOnMaterialChangeCallback( &OnMaterialChangeCallback );
+	SetOnSkyTextureChangeCallback( &OnSkyTextureChangeCallback );
+
     DXUTInit( true, true, nullptr ); // Parse the command line, show msgboxes on error, no extra command line params
     DXUTSetCursorSettings( true, true ); // Show the cursor and clip it when in full screen
     DXUTCreateWindow( L"PBR" );
@@ -617,213 +528,4 @@ int WINAPI wWinMain( _In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     // Perform any application-level cleanup here
 
     return DXUTGetExitCode();
-}
-
-
-void InitApp()
-{
-	g_D3DSettingsDlg.Init(&g_DialogResourceManager);
-	g_HUD.Init( &g_DialogResourceManager );
-	g_HUD.SetCallback( OnGUIEvent );
-
-	int iY = 10;
-	g_HUD.AddButton( IDC_CHANGEDEVICE, L"Change device (F2)", 0, iY, HUD_WIDTH, 23, VK_F2 );
-	g_HUD.AddButton( IDC_RELOAD_SHADERS, L"Reload shaders (F3)", 0, iY += 25, HUD_WIDTH, 23, VK_F3 );
-
-	iY += 50;
-	WCHAR str[MAX_PATH];
-	swprintf_s( str, MAX_PATH, L"Light vert: %d", g_lightDirVert );
-	g_HUD.AddStatic( IDC_LIGHTVERT_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_HUD.AddSlider( IDC_LIGHTVERT, 0, iY += 24, HUD_WIDTH, 22, 0, 180, g_lightDirVert );
-
-	swprintf_s( str, MAX_PATH, L"Light hor: %d", g_lightDirHor );
-	g_HUD.AddStatic(IDC_LIGHTHOR_STATIC, str, 0, iY += 24, HUD_WIDTH, 22);
-	g_HUD.AddSlider(IDC_LIGHTHOR, 0, iY += 24, HUD_WIDTH, 22, 0, 180, g_lightDirHor );
-
-	swprintf_s( str, MAX_PATH, L"Light irradiance( W/m2 ): %1.2f", g_lightIrradiance );
-	g_HUD.AddStatic( IDC_LIGHT_IRRADIANCE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_HUD.AddSlider( IDC_LIGHT_IRRADIANCE, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_lightIrradiance * 5.0f ));
-
-	g_HUD.AddButton( IDC_LIGHT_COLOR, L"Light color", 0, iY += 25, HUD_WIDTH, 23 );
-
-	swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
-	g_HUD.AddStatic( IDC_EXPOSURE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_HUD.AddSlider( IDC_EXPOSURE, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_exposure * 20.0f ) );
-
-	swprintf_s( str, MAX_PATH, L"Draw sky" );
-	g_HUD.AddCheckBox( IDC_DRAW_SKY, str, 0, iY += 24, HUD_WIDTH, 22, g_drawSky );
-
-	CDXUTComboBox* skyTextureComboxBox;
-	g_HUD.AddComboBox( IDC_SELECT_SKY_TEXTURE, 0, iY += 24, HUD_WIDTH, 22, 0, false, &skyTextureComboxBox );
-	for( size_t i = 0; i < sizeof( g_skyTextureFiles ) / sizeof( wchar_t* ); i++ )
-		skyTextureComboxBox->AddItem( g_skyTextureFiles[ i ], ( void* )g_skyTextureFiles[ i ] );
-
-	CDXUTComboBox* sceneComboBox;
-	g_HUD.AddComboBox( IDC_SCENE_TYPE, 0, iY += 24, HUD_WIDTH, 22, 0, false, &sceneComboBox );
-	sceneComboBox->AddItem( L"One sphere", ULongToPtr( SCENE_ONE_SPHERE ) );
-	sceneComboBox->AddItem( L"Multiple spheres", ULongToPtr( SCENE_MULTIPLE_SPHERES ) );
-	//sceneComboBox->AddItem( L"Sponza", ULongToPtr( SCENE_SPONZA ) );
-
-	swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_metalness );
-	g_HUD.AddStatic( IDC_METALNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_HUD.AddSlider( IDC_METALNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_metalness * 100.0f ) );
-
-	swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
-	g_HUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_HUD.AddSlider( IDC_ROUGHNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_roughness * 100.0f ) );
-
-	g_HUD.AddButton( IDC_ALBEDO, L"Albedo", 0, iY += 25, HUD_WIDTH, 23 );
-
-	swprintf_s( str, MAX_PATH, L"Use material" );
-	g_HUD.AddCheckBox( IDC_USE_MATERIAL, str, 0, iY += 24, HUD_WIDTH, 22, g_useMaterial );
-
-	CDXUTComboBox* materialComboxBox;
-	g_HUD.AddComboBox( IDC_MATERIAL, 0, iY += 24, HUD_WIDTH, 22, 0, false, &materialComboxBox );
-	for (size_t i = 0; i < sizeof( g_materials ) / sizeof( wchar_t* ); i++ )
-		materialComboxBox->AddItem( g_materials[ i ], (void*)g_materials[ i ] );
-
-	swprintf_s( str, MAX_PATH, L"Enable direct light" );
-	g_HUD.AddCheckBox( IDC_DIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_enableDirectLight );
-
-	swprintf_s( str, MAX_PATH, L"Enable indirect light" );
-	g_HUD.AddCheckBox( IDC_INDIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_enableIndirectLight );
-}
-
-
-void CALLBACK OnGUIEvent(UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext)
-{
-	WCHAR str[MAX_PATH];
-
-	switch (nControlID)
-	{
-		case IDC_CHANGEDEVICE:
-		{
-			g_D3DSettingsDlg.SetActive( !g_D3DSettingsDlg.IsActive() );
-			break;
-		}
-		case IDC_RELOAD_SHADERS:
-		{
-			g_skyRenderer.ReloadShaders( DXUTGetD3D11Device() );
-			g_sphereRenderer.ReloadShaders( DXUTGetD3D11Device() );
-			g_postProcess.ReloadShaders( DXUTGetD3D11Device() );
-			g_resetSampling = true;
-			break;
-		}
-		case IDC_LIGHTVERT:
-		{
-			g_lightDirVert = g_HUD.GetSlider(IDC_LIGHTVERT)->GetValue();
-			swprintf_s(str, MAX_PATH, L"Light vert: %d", g_lightDirVert);
-			g_HUD.GetStatic(IDC_LIGHTVERT_STATIC)->SetText(str);
-			break;
-		}
-		case IDC_LIGHTHOR:
-		{
-			g_lightDirHor = g_HUD.GetSlider(IDC_LIGHTHOR)->GetValue();
-			swprintf_s(str, MAX_PATH, L"Light hor: %d", g_lightDirHor);
-			g_HUD.GetStatic(IDC_LIGHTHOR_STATIC)->SetText(str);
-			break;
-		}
-		case IDC_LIGHT_IRRADIANCE:
-		{
-			g_lightIrradiance = g_HUD.GetSlider( IDC_LIGHT_IRRADIANCE )->GetValue() / 5.0f;
-			swprintf_s( str, MAX_PATH, L"Light irradiance( W/m2 ): %1.2f", g_lightIrradiance );
-			g_HUD.GetStatic( IDC_LIGHT_IRRADIANCE_STATIC )->SetText( str );
-			break;
-		}
-		case IDC_LIGHT_COLOR:
-		{
-			CHOOSECOLOR cc;		
-			COLORREF acrCustClr[16];	
-			memset( &cc, 0, sizeof( cc ) );
-			cc.lStructSize = sizeof( cc );
-			cc.lpCustColors = ( LPDWORD )acrCustClr;
-			cc.rgbResult = VectorToColor( g_lightColor );
-			cc.Flags = CC_FULLOPEN | CC_RGBINIT;
-
-			if( ChooseColor( &cc ) == TRUE ) 
-				g_lightColor = ColorToVector( cc.rgbResult );
-
-			break;
-		}
-		case IDC_METALNESS:
-		{
-			g_metalness = g_HUD.GetSlider( IDC_METALNESS )->GetValue() / 100.0f;
-			swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_metalness );
-			g_HUD.GetStatic( IDC_METALNESS_STATIC )->SetText( str );
-			g_resetSampling = true;
-			break;
-		}
-		case IDC_ROUGHNESS:
-		{
-			g_roughness = g_HUD.GetSlider( IDC_ROUGHNESS )->GetValue() / 100.0f;
-			swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_roughness );
-			g_HUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
-			g_resetSampling = true;
-			break;
-		}
-		case IDC_ALBEDO:
-		{
-			CHOOSECOLOR cc;
-			COLORREF acrCustClr[ 16 ];
-			memset( &cc, 0, sizeof( cc ) );
-			cc.lStructSize = sizeof( cc );
-			cc.lpCustColors = ( LPDWORD )acrCustClr;
-			cc.rgbResult = VectorToColor( g_albedo );
-			cc.Flags = CC_FULLOPEN | CC_RGBINIT;
-
-			if( ChooseColor( &cc ) == TRUE ) {
-				g_albedo = ColorToVector( cc.rgbResult );
-				g_resetSampling = true;
-			}
-
-			break;
-		}
-		case IDC_USE_MATERIAL:
-		{
-			g_useMaterial = g_HUD.GetCheckBox( IDC_USE_MATERIAL )->GetChecked();
-			g_resetSampling = true;
-			break;
-		}
-		case IDC_MATERIAL:
-		{
-			const wchar_t* filename = ( const wchar_t* )g_HUD.GetComboBox( IDC_MATERIAL )->GetSelectedData();
-			g_material.Load( DXUTGetD3D11Device(), filename );
-			g_resetSampling = true;
-		}
-		case IDC_DIRECT_LIGHT:
-		{
-			g_enableDirectLight = g_HUD.GetCheckBox( IDC_DIRECT_LIGHT )->GetChecked();
-			break;
-		}
-		case IDC_INDIRECT_LIGHT:
-		{
-			g_enableIndirectLight = g_HUD.GetCheckBox( IDC_INDIRECT_LIGHT )->GetChecked();
-			g_resetSampling = true;
-			break;
-		}
-		case IDC_EXPOSURE:
-		{
-			g_exposure = g_HUD.GetSlider( IDC_EXPOSURE )->GetValue() / 20.0f;
-			swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_exposure );
-			g_HUD.GetStatic( IDC_EXPOSURE_STATIC )->SetText( str );
-			break;
-		}
-		case IDC_DRAW_SKY:
-		{
-			g_drawSky = g_HUD.GetCheckBox( IDC_DRAW_SKY )->GetChecked();
-			break;
-		}
-		case IDC_SELECT_SKY_TEXTURE:
-		{
-			const wchar_t* filename = ( const wchar_t* )g_HUD.GetComboBox( IDC_SELECT_SKY_TEXTURE )->GetSelectedData();
-			g_skyRenderer.LoadSkyTexture( DXUTGetD3D11Device(), filename );
-			g_resetSampling = true;
-		}
-		case IDC_SCENE_TYPE:
-		{
-			g_sceneType = ( SCENE_TYPE )PtrToUlong( g_HUD.GetComboBox( IDC_SCENE_TYPE )->GetSelectedData() );
-			g_resetSampling = true;
-			break;
-		}
-	}
 }

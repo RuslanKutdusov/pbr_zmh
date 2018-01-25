@@ -9,10 +9,8 @@ cbuffer InstanceParams : register( b1 )
 		float Metalness;
 		float Roughness;
 		float4 Albedo;
-		bool EnableDirectLight;
-		bool EnableIndirectLight;
 		bool UseMaterial;
-		bool padding;
+		bool3 padding;
 	} InstanceData[ 128 ];
 };
 Texture2D AlbedoTexture : register( t0 );
@@ -84,13 +82,11 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 		metalness = InstanceData[ input.id ].Metalness;
 		roughness = InstanceData[ input.id ].Roughness;
 	}
-	bool enableDirectLight = InstanceData[ input.id ].EnableDirectLight;
-	bool enableIndirectLight = InstanceData[ input.id ].EnableIndirectLight;
 	
 	PSOutput output = ( PSOutput )0;
-	if( enableDirectLight )
+	if( EnableDirectLight )
 		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, albedo ) * LightIrradiance.rgb;
-	if( enableIndirectLight ) 
+	if( EnableIndirectLight ) 
 	{
 		uint2 random = RandVector_v2( pixelPos.xy );
 		output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, albedo, random );
