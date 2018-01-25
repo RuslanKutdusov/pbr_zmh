@@ -9,6 +9,7 @@
     <ClCompile Include="code\RenderTarget.cpp" />
     <ClCompile Include="code\Material.cpp" />
     <ClCompile Include="code\UI.cpp" />
+    <ClCompile Include="code\SponzaRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
@@ -37,5 +38,6 @@
     <ClInclude Include="code\RenderTarget.h" />
     <ClInclude Include="code\Material.h" />
     <ClInclude Include="code\UI.h" />
+    <ClInclude Include="code\SponzaRenderer.h" />
   </ItemGroup>
 </Project>

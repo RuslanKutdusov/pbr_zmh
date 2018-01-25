@@ -1,6 +1,5 @@
 #include "Precompiled.h"
 #include "resource.h"
-#include <assimp\Importer.hpp>
 
 #define GLOBAL_PARAMS_CB 0
 #define ENVIRONMENT_MAP 127
@@ -43,6 +42,7 @@ ID3D11BlendState*					g_doubleRtBlendState = nullptr;
 ID3D11SamplerState*					g_linearWrapSamplerState = nullptr;
 SphereRenderer						g_sphereRenderer;
 SkyRenderer							g_skyRenderer;
+SponzaRenderer						g_sponzaRenderer;
 PostProcess							g_postProcess;
 
 // lighting render targets 
@@ -109,6 +109,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	V_RETURN( g_skyRenderer.OnD3D11CreateDevice( pd3dDevice ) );
 	V_RETURN( g_skyRenderer.LoadSkyTexture( pd3dDevice, GetGlobalControls().skyTexture ) );
 	V_RETURN( g_postProcess.OnD3D11CreateDevice( pd3dDevice ) );
+	V_RETURN( g_sponzaRenderer.OnD3D11CreateDevice( pd3dDevice ) );
 
 	D3D11_RASTERIZER_DESC rasterDesc;
 	rasterDesc.FillMode = D3D11_FILL_SOLID;
@@ -264,6 +265,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 			g_skyRenderer.RenderDepthPass( pd3dImmediateContext );
 		if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE || GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
 			g_sphereRenderer.RenderDepthPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
+		g_sponzaRenderer.RenderDepthPass( pd3dImmediateContext );
 
 		DXUT_EndPerfEvent();
 	}
@@ -289,6 +291,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 			Material* material = GetOneSphereSceneControls().useMaterial ? &g_material : nullptr;
 			g_sphereRenderer.RenderLightPass( sphereInstances, material, numSphereInstances, pd3dImmediateContext );
 		}
+		g_sponzaRenderer.RenderLightPass( pd3dImmediateContext );
 
 		DXUT_EndPerfEvent();
 	}
@@ -405,6 +408,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 
 	g_sphereRenderer.OnD3D11DestroyDevice();
 	g_skyRenderer.OnD3D11DestroyDevice();
+	g_sponzaRenderer.OnD3D11DestroyDevice();
 	g_postProcess.OnD3D11DestroyDevice();
 }
 

@@ -211,6 +211,7 @@
     <ClCompile Include="code\RenderTarget.cpp" />
     <ClCompile Include="code\SkyRenderer.cpp" />
     <ClCompile Include="code\SphereRenderer.cpp" />
+    <ClCompile Include="code\SponzaRenderer.cpp" />
     <ClCompile Include="code\UI.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -230,6 +231,7 @@
     <CLInclude Include="code\resource.h" />
     <ClInclude Include="code\SkyRenderer.h" />
     <ClInclude Include="code\SphereRenderer.h" />
+    <ClInclude Include="code\SponzaRenderer.h" />
     <ClInclude Include="code\UI.h" />
     <ResourceCompile Include="code\pbr_zmh.rc" />
   </ItemGroup>

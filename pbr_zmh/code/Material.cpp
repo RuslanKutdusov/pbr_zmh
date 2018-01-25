@@ -3,48 +3,62 @@
 
 HRESULT Material::Load( ID3D11Device* pd3dDevice, const wchar_t* materialName )
 {
+	const wchar_t* extension = L"dds";
+	const UINT printfBufSize = 256;
+	wchar_t albedoPath[ printfBufSize ];
+	wchar_t normalPath[ printfBufSize ];
+	wchar_t roughnessPath[ printfBufSize ];
+	wchar_t metalnessPath[ printfBufSize ];
+
+	memset( albedoPath, 0, printfBufSize * sizeof( wchar_t ) );
+	wsprintf( albedoPath, L"%s\\albedo.%s", materialName, extension );
+
+	memset( normalPath, 0, printfBufSize * sizeof( wchar_t ) );
+	wsprintf( normalPath, L"%s\\normal.%s", materialName, extension );
+
+	memset( roughnessPath, 0, printfBufSize * sizeof( wchar_t ) );
+	wsprintf( roughnessPath, L"%s\\roughness.%s", materialName, extension );
+
+	memset( metalnessPath, 0, printfBufSize * sizeof( wchar_t ) );
+	wsprintf( metalnessPath, L"%s\\metalness.%s", materialName, extension );
+
+	return Load( pd3dDevice, materialName, albedoPath, normalPath, roughnessPath, metalnessPath );
+}
+
+
+HRESULT Material::Load( ID3D11Device* pd3dDevice, const wchar_t* materialName, const wchar_t* albedoPath, const wchar_t* normalPath,
+	const wchar_t* roughnessPath, const wchar_t* metalnessPath )
+{
 	ID3D11DeviceContext* ctx;
 	pd3dDevice->GetImmediateContext( &ctx );
 	HRESULT hr;
 	Release();
 
-	const wchar_t* extension = L"dds";
-	const UINT printfBufSize = 256;
-	wchar_t printfBuf[ printfBufSize ];
-
-	memset( printfBuf, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( printfBuf, L"%s\\albedo.%s", materialName, extension );
-	hr = DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, printfBuf, &albedo, true );
+	hr = DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, albedoPath, &albedo, true );
 	if( FAILED( hr ) )
 	{
-		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, 
+		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx,
 			L"materials\\default\\albedo.dds", &albedo, true );
 	}
 
-	memset( printfBuf, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( printfBuf, L"%s\\normal.%s", materialName, extension );
-	hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, printfBuf, &normal );
+	hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, normalPath, &normal );
 	if( FAILED( hr ) )
 	{
-		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, 
+		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx,
 			L"materials\\default\\normal.dds", &normal, false );
 	}
 
-	memset( printfBuf, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( printfBuf, L"%s\\roughness.%s", materialName, extension );
-	hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, printfBuf, &roughness );
+	hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, roughnessPath, &roughness );
 	if( FAILED( hr ) )
 	{
-		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, 
+		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx,
 			L"materials\\default\\roughness.dds", &roughness, false );
 	}
 
-	memset( printfBuf, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( printfBuf, L"%s\\metalness.%s", materialName, extension );
-	hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, printfBuf, &metalness );
+	hr = DXUTCreateShaderResourceViewFromFile( pd3dDevice, metalnessPath, &metalness );
 	if( FAILED( hr ) )
 	{
-		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx, 
+		DXUTGetGlobalResourceCache().CreateTextureFromFile( pd3dDevice, ctx,
 			L"materials\\default\\metalness.dds", &metalness, false );
 	}
 
