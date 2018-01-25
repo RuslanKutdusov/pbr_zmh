@@ -37,7 +37,7 @@ struct OneSphereSceneControls
 
 struct MultipleSphereSceneControls
 {
-
+	DirectX::XMVECTOR albedo = DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 };
 
 

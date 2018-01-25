@@ -237,10 +237,10 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	{
 		for( int z = -5; z <= 5; z++ )
 		{
-			multSphereInstances[ instanceCounter ] = oneSphereInstance;
 			multSphereInstances[ instanceCounter ].WorldMatrix = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
 			multSphereInstances[ instanceCounter ].Metalness = ( x + 5 ) / 10.0f;
 			multSphereInstances[ instanceCounter ].Roughness = ( z + 5 ) / 10.0f;
+			multSphereInstances[ instanceCounter ].Albedo = GetMultipleSphereSceneControls().albedo;
 			multSphereInstances[ instanceCounter ].UseMaterial = false;
 			instanceCounter++;
 		}
