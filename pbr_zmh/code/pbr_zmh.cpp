@@ -265,7 +265,8 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 			g_skyRenderer.RenderDepthPass( pd3dImmediateContext );
 		if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE || GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
 			g_sphereRenderer.RenderDepthPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
-		g_sponzaRenderer.RenderDepthPass( pd3dImmediateContext );
+		if( GetGlobalControls().sceneType == SCENE_SPONZA )
+			g_sponzaRenderer.RenderDepthPass( pd3dImmediateContext );
 
 		DXUT_EndPerfEvent();
 	}
@@ -291,13 +292,14 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 			Material* material = GetOneSphereSceneControls().useMaterial ? &g_material : nullptr;
 			g_sphereRenderer.RenderLightPass( sphereInstances, material, numSphereInstances, pd3dImmediateContext );
 		}
-		g_sponzaRenderer.RenderLightPass( pd3dImmediateContext );
+		if( GetGlobalControls().sceneType == SCENE_SPONZA )
+			g_sponzaRenderer.RenderLightPass( pd3dImmediateContext );
 
 		DXUT_EndPerfEvent();
 	}
 
 	if( g_samplesProcessed < TotalSamples )
-			g_samplesProcessed += SamplesInStep;
+		g_samplesProcessed += SamplesInStep;
 }
 
 
@@ -463,6 +465,7 @@ void OnShaderReloadCallback()
 {
 	g_skyRenderer.ReloadShaders( DXUTGetD3D11Device() );
 	g_sphereRenderer.ReloadShaders( DXUTGetD3D11Device() );
+	g_sponzaRenderer.ReloadShaders( DXUTGetD3D11Device() );
 	g_postProcess.ReloadShaders( DXUTGetD3D11Device() );
 	g_resetSampling = true;
 }
@@ -529,7 +532,7 @@ int WINAPI wWinMain( _In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     DXUTSetCursorSettings( true, true ); // Show the cursor and clip it when in full screen
     DXUTCreateWindow( L"PBR" );
 
-    // Only require 10-level hardware or later
+    // 
     DXUTCreateDevice( D3D_FEATURE_LEVEL_11_0, true, 1920, 1080 );
     DXUTMainLoop(); // Enter into the DXUT ren  der loop
 

@@ -300,7 +300,7 @@ void UIInit()
 	g_globalHUD.AddComboBox( IDC_SCENE_TYPE, 0, iY += 24, HUD_WIDTH, 22, 0, false, &sceneComboBox );
 	sceneComboBox->AddItem( L"One sphere", ULongToPtr( SCENE_ONE_SPHERE ) );
 	sceneComboBox->AddItem( L"Multiple spheres", ULongToPtr( SCENE_MULTIPLE_SPHERES ) );
-	//sceneComboBox->AddItem( L"Sponza", ULongToPtr( SCENE_SPONZA ) );
+	sceneComboBox->AddItem( L"Sponza", ULongToPtr( SCENE_SPONZA ) );
 
 	g_globalHUDHeight = iY;
 
@@ -405,7 +405,7 @@ bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFu
 		if( *pbNoFurtherProcessing )
 			return false;
 	}
-	else
+	else if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
 	{
 		*pbNoFurtherProcessing = g_multipleSphereHUD.MsgProc( hWnd, uMsg, wParam, lParam );
 		if( *pbNoFurtherProcessing )
@@ -422,7 +422,7 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 	g_globalHUD.OnRender( fElapsedTime );
 	if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
 		g_oneSphereHUD.OnRender( fElapsedTime );
-	else
+	else if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
 		g_multipleSphereHUD.OnRender( fElapsedTime );
 	g_pTxtHelper->Begin();
 	g_pTxtHelper->SetInsertionPos( 2, 0 );
