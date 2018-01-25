@@ -17,6 +17,7 @@ struct GlobalParams
 	XMVECTOR ViewPos;
 	XMVECTOR LightDir;
 	XMVECTOR LightIrradiance;
+	XMMATRIX ShadowMatrix;
 	UINT FrameIdx;
 	UINT TotalSamples;
 	UINT SamplesInStep;
@@ -48,6 +49,7 @@ PostProcess							g_postProcess;
 // lighting render targets 
 RenderTarget						g_directLightRenderTarget;
 RenderTarget						g_indirectLightRenderTarget;
+DepthRenderTarget					g_shadowMap;
 Material							g_material;
 
 // Image base lighting importance sampling stuff
@@ -57,6 +59,7 @@ bool g_resetSampling = false;
 XMMATRIX g_lastFrameViewProj;
 const UINT TotalSamples = 128;
 const UINT SamplesInStep = 16;
+const UINT SHADOW_MAP_RESOLUTION = 1024;
 
 
 //--------------------------------------------------------------------------------------
@@ -173,6 +176,8 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 
 	g_material.Load( pd3dDevice, L"materials\\default" );
 
+	g_shadowMap.Init( pd3dDevice, SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, "ShadowMap" );
+
     return S_OK;
 }
 
@@ -228,6 +233,38 @@ void BakeCubeMap( ID3D11DeviceContext* pd3dImmediateContext )
 }
 
 
+XMMATRIX ComputeShadowMatrix()
+{
+	float lightDirVert = ToRad( ( float )GetGlobalControls().lightDirVert );
+	float lightDirHor = ToRad( ( float )GetGlobalControls().lightDirHor );
+	XMVECTOR lightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
+
+	const float depthRange = 1000.0f;
+	XMVECTOR shadowCameraPos = XMVectorScale( lightDir, -0.5f * depthRange );
+
+	XMMATRIX viewMatrix, projMatrix;
+	viewMatrix = XMMatrixLookAtLH( shadowCameraPos, XMVectorZero(), XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f ) );
+	projMatrix = XMMatrixOrthographicLH( SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, 1.0f, depthRange );
+
+	XMMATRIX lsOffset;
+	lsOffset.r[ 1 ] = XMVectorSet( 0.5f, 0.0f, 0.0f, 0.0f );
+	lsOffset.r[ 2 ] = XMVectorSet( 0.0f, -0.5f, 0.0f, 0.0f );
+	lsOffset.r[ 3 ] = XMVectorSet( 0.5f, 0.0f, 1.0f, 0.0f );
+	lsOffset.r[ 4 ] = XMVectorSet( 0.5f, 0.5f, 0.0f, 1.0f );
+
+	return XMMatrixMultiply( XMMatrixMultiply( viewMatrix, projMatrix ), lsOffset );
+}
+
+
+void RenderShadow( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Shadow pass" );
+
+
+	DXUT_EndPerfEvent();
+}
+
+
 void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 {
 	SphereRenderer::InstanceParams oneSphereInstance;
@@ -252,6 +289,24 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	}
 	SphereRenderer::InstanceParams* sphereInstances = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? &oneSphereInstance : &multSphereInstances[ 0 ];
 	UINT numSphereInstances = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? 1 : 11 * 11;
+
+	// shadow pass
+	{
+		DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Shadow pass" );
+		ID3D11RenderTargetView* rtv[ 2 ] = { nullptr, nullptr };
+		pd3dImmediateContext->OMSetRenderTargets( 2, rtv, g_shadowMap.dsv );
+		pd3dImmediateContext->ClearDepthStencilView( g_shadowMap.dsv, D3D11_CLEAR_DEPTH, 1.0, 0 );
+		pd3dImmediateContext->OMSetDepthStencilState( g_depthPassDepthStencilState, 0 );
+
+		if( GetGlobalControls().drawSky )
+			g_skyRenderer.RenderDepthPass( pd3dImmediateContext );
+		if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE || GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
+			g_sphereRenderer.RenderDepthPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
+		if( GetGlobalControls().sceneType == SCENE_SPONZA )
+			g_sponzaRenderer.RenderDepthPass( pd3dImmediateContext );
+
+		DXUT_EndPerfEvent();
+	}
 
 	// depth pass
 	{
@@ -347,6 +402,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		float lightDirHor = ToRad( ( float )GetGlobalControls().lightDirHor );
 		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
 		globalParams->LightIrradiance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIrradiance );
+		globalParams->ShadowMatrix = ComputeShadowMatrix();
 		globalParams->FrameIdx = g_frameIdx;
 		globalParams->TotalSamples = TotalSamples;
 		globalParams->SamplesInStep = SamplesInStep;
@@ -406,6 +462,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_linearWrapSamplerState );
 	g_directLightRenderTarget.Release();
 	g_indirectLightRenderTarget.Release();
+	g_shadowMap.Release();
 	g_material.Release();
 
 	g_sphereRenderer.OnD3D11DestroyDevice();

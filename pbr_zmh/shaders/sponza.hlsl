@@ -52,6 +52,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	float3 albedo = AlbedoTexture.Sample( LinearWrapSampler, input.uv ).rgb;
 	float metalness = MetalnessTexture.Sample( LinearWrapSampler, input.uv ).r;
 	float roughness = RoughnessTexture.Sample( LinearWrapSampler, input.uv ).r;
+	
 	float3 normalTS = NormalTexture.Sample( LinearWrapSampler, input.uv ).rgb * 2.0f - 1.0f;
 	normal = normalize( mul( normalTS, float3x3( tangent, binormal, normal ) ) );
 	

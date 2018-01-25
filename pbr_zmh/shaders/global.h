@@ -6,13 +6,15 @@ cbuffer GlobalParams : register( b0 )
 	float4 ViewPos;
 	float4 LightDir;
 	float4 LightIrradiance;
+	float4x4 ShadowMatrix;
 	uint FrameIdx;
 	uint TotalSamples;
 	uint SamplesInStep;
 	uint SamplesProcessed;
 	bool EnableDirectLight;
 	bool EnableIndirectLight;
-	bool2 padding;
+	bool IsShadowPass;
+	bool padding;
 };
 
 
