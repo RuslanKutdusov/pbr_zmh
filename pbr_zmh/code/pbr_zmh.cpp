@@ -1,6 +1,9 @@
 #include "Precompiled.h"
 #include "resource.h"
-#include "shaders/global_registers.h"
+
+#define GLOBAL_PARAMS_CB 0
+#define ENVIRONMENT_MAP 127
+#define LINEAR_WRAP_SAMPLER_STATE 15
 
 #pragma warning( disable : 4100 )
 

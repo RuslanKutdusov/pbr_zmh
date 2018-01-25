@@ -1,7 +1,6 @@
-#include "global_registers.h"
 #pragma pack_matrix( row_major )
 
-cbuffer GlobalParams : register( BRegister( GLOBAL_PARAMS_CB ) )
+cbuffer GlobalParams : register( b0 )
 {
 	float4x4 ViewProjMatrix;
 	float4 ViewPos;
@@ -26,5 +25,5 @@ struct SdkMeshVertex
 	float3 binormal : BINORMAL;
 };
 
-TextureCube EnvironmentMap : register( TRegister( ENVIRONMENT_MAP ) );
-SamplerState LinearWrapSampler : register( SRegister( LINEAR_WRAP_SAMPLER_STATE ) );
+TextureCube EnvironmentMap : register( t127 );
+SamplerState LinearWrapSampler : register( s15 );

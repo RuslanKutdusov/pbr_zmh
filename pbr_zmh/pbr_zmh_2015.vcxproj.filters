@@ -1,14 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="pbr_zmh.cpp" />
-    <ClCompile Include="SphereRenderer.cpp" />
-    <ClCompile Include="SkyRenderer.cpp" />
-    <ClCompile Include="PostProcess.cpp" />
-    <ClCompile Include="Helpers.cpp" />
-    <ClCompile Include="RenderTarget.cpp" />
-    <ClCompile Include="Material.cpp" />
-    <ClCompile Include="UI.cpp" />
+    <ClCompile Include="code\pbr_zmh.cpp" />
+    <ClCompile Include="code\SphereRenderer.cpp" />
+    <ClCompile Include="code\SkyRenderer.cpp" />
+    <ClCompile Include="code\PostProcess.cpp" />
+    <ClCompile Include="code\Helpers.cpp" />
+    <ClCompile Include="code\RenderTarget.cpp" />
+    <ClCompile Include="code\Material.cpp" />
+    <ClCompile Include="code\UI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
@@ -21,21 +21,21 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="pbr_zmh.rc">
+    <ResourceCompile Include="code\pbr_zmh.rc">
       <Filter>ResourceFiles</Filter>
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <CLInclude Include="resource.h">
+    <CLInclude Include="code\resource.h">
       <Filter>ResourceFiles</Filter>
     </CLInclude>
-    <ClInclude Include="SphereRenderer.h" />
-    <ClInclude Include="Precompiled.h" />
-    <ClInclude Include="SkyRenderer.h" />
-    <ClInclude Include="PostProcess.h" />
-    <ClInclude Include="Helpers.h" />
-    <ClInclude Include="RenderTarget.h" />
-    <ClInclude Include="Material.h" />
-    <ClInclude Include="UI.h" />
+    <ClInclude Include="code\SphereRenderer.h" />
+    <ClInclude Include="code\Precompiled.h" />
+    <ClInclude Include="code\SkyRenderer.h" />
+    <ClInclude Include="code\PostProcess.h" />
+    <ClInclude Include="code\Helpers.h" />
+    <ClInclude Include="code\RenderTarget.h" />
+    <ClInclude Include="code\Material.h" />
+    <ClInclude Include="code\UI.h" />
   </ItemGroup>
 </Project>
