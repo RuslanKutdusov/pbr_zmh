@@ -10,3 +10,14 @@ struct RenderTarget
 	HRESULT Init( ID3D11Device* pd3dDevice, DXGI_FORMAT format, UINT width, UINT height, const char* name );
 	void Release();
 };
+
+
+struct DepthRenderTarget
+{
+	ID3D11Texture2D*			texture = nullptr;
+	ID3D11DepthStencilView*		dsv = nullptr;
+	ID3D11ShaderResourceView*	srv = nullptr;
+
+	HRESULT Init( ID3D11Device* pd3dDevice, UINT width, UINT height, const char* name );
+	void Release();
+};

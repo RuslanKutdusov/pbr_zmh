@@ -47,3 +47,52 @@ void RenderTarget::Release()
 	SAFE_RELEASE(rtv);
 	SAFE_RELEASE(srv);
 }
+
+
+HRESULT DepthRenderTarget::Init( ID3D11Device* pd3dDevice, UINT width, UINT height, const char* name )
+{
+	HRESULT hr;
+	Release();
+
+	D3D11_TEXTURE2D_DESC texDesc;
+	ZeroMemory( &texDesc, sizeof( D3D11_TEXTURE2D_DESC ) );
+	texDesc.ArraySize = 1;
+	texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+	texDesc.Usage = D3D11_USAGE_DEFAULT;
+	texDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	texDesc.Width = width;
+	texDesc.Height = height;
+	texDesc.MipLevels = 1;
+	texDesc.SampleDesc.Count = 1;
+	V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &texture ) );
+	DXUT_SetDebugName( texture, name );
+
+	// Create the depth stencil view
+	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+	ZeroMemory( &texDesc, sizeof( D3D11_TEXTURE2D_DESC ) );
+	dsvDesc.Format = texDesc.Format;
+	dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Texture2D.MipSlice = 0;
+	V_RETURN( pd3dDevice->CreateDepthStencilView( texture, &dsvDesc, &dsv ) );
+	DXUT_SetDebugName( dsv, name );
+
+	// Create the shader resource view
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	V_RETURN( pd3dDevice->CreateShaderResourceView( texture, &srvDesc, &srv ) );
+	DXUT_SetDebugName( srv, name );
+
+	return S_OK;
+}
+
+
+
+void DepthRenderTarget::Release()
+{
+	SAFE_RELEASE( texture );
+	SAFE_RELEASE( dsv );
+	SAFE_RELEASE( srv );
+}
