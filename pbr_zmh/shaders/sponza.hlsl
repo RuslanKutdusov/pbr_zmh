@@ -1,10 +1,6 @@
 #include "global.h"
 #include "lighting.h"
 
-cbuffer InstanceParams : register( b1 )
-{
-	float4x4 WorldMatrix;
-};
 Texture2D AlbedoTexture : register( t0 );
 Texture2D NormalTexture : register( t1 );
 Texture2D RoughnessTexture : register( t2 );
@@ -26,7 +22,7 @@ VSOutput vs_main( SdkMeshVertex input )
 {
 	VSOutput output;
 
-	float4 worldPos = float4( input.pos, 1.0f );
+	float4 worldPos = float4( input.pos * 0.01f, 1.0f );
 	output.pos = mul( worldPos, ViewProjMatrix );
 
 	output.worldPos = worldPos.xyz;
@@ -56,6 +52,8 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	float3 albedo = AlbedoTexture.Sample( LinearWrapSampler, input.uv ).rgb;
 	float metalness = MetalnessTexture.Sample( LinearWrapSampler, input.uv ).r;
 	float roughness = RoughnessTexture.Sample( LinearWrapSampler, input.uv ).r;
+	float3 normalTS = NormalTexture.Sample( LinearWrapSampler, input.uv ).rgb * 2.0f - 1.0f;
+	normal = normalize( mul( normalTS, float3x3( tangent, binormal, normal ) ) );
 	
 	PSOutput output = ( PSOutput )0;
 	if( EnableDirectLight )
