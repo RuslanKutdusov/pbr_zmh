@@ -1,5 +1,6 @@
 #include "Precompiled.h"
 #include "resource.h"
+#include <assimp\Importer.hpp>
 
 #define GLOBAL_PARAMS_CB 0
 #define ENVIRONMENT_MAP 127
