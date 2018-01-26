@@ -64,7 +64,7 @@ bool g_resetSampling = false;
 XMMATRIX g_lastFrameViewProj;
 const UINT TotalSamples = 128;
 const UINT SamplesInStep = 16;
-const UINT SHADOW_MAP_RESOLUTION = 4096;
+const UINT SHADOW_MAP_RESOLUTION = 2048;
 
 
 //--------------------------------------------------------------------------------------
@@ -463,7 +463,12 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	g_postProcess.Render( pd3dImmediateContext, g_directLightRenderTarget.srv, g_indirectLightRenderTarget.srv, GetGlobalControls().exposure );
 	DXUT_EndPerfEvent();
 
-	UIRender( pd3dDevice, pd3dImmediateContext, fElapsedTime );
+	const uint32_t debugStrLen = 512;
+	wchar_t debugStr[ debugStrLen ];
+	memset( debugStr, 0, debugStrLen * sizeof( wchar_t ) );
+	XMVECTOR p = currentCamera->GetEyePt();
+	swprintf_s( debugStr, L"Camera position: %1.2f %1.2f %1.2f", p.m128_f32[ 0 ], p.m128_f32[ 1 ], p.m128_f32[ 3 ] );
+	UIRender( pd3dDevice, pd3dImmediateContext, fElapsedTime, debugStr );
 }
 
 

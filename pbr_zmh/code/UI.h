@@ -50,7 +50,7 @@ void UIOnReleasingSwapChain();
 void UIOnDestroyDevice();
 
 bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFurtherProcessing, void* pUserContext );
-void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, float fElapsedTime );
+void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, float fElapsedTime, const wchar_t* debugStr );
 
 CD3DSettingsDlg& GetD3DSettingsDlg();
 const GlobalControls& GetGlobalControls();

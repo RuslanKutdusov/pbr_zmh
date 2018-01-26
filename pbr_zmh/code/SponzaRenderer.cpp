@@ -19,7 +19,7 @@ HRESULT SponzaRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	WCHAR fullPath[ MAX_PATH ];
 	if( FAILED( DXUTFindDXSDKMediaFileCch( fullPath, MAX_PATH, L"sponza\\sponza.obj" ) ) )
 	{
-		ErrorMessageBox( "Shader file does not exists:\n%ws", fullPath );
+		ErrorMessageBox( "Sponza model file not found" );
 		return E_FAIL;
 	}
 	char fullPathA[ MAX_PATH ];

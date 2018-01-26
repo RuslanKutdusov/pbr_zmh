@@ -438,7 +438,7 @@ bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFu
 }
 
 
-void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, float fElapsedTime )
+void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, float fElapsedTime, const wchar_t* debugStr )
 {
 	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"HUD / Stats" );
 	g_globalHUD.OnRender( fElapsedTime );
@@ -451,6 +451,8 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 	g_pTxtHelper->SetForegroundColor( Colors::Yellow );
 	g_pTxtHelper->DrawTextLine( DXUTGetFrameStats( DXUTIsVsyncEnabled() ) );
 	g_pTxtHelper->DrawTextLine( DXUTGetDeviceStats() );
+	if( debugStr )
+		g_pTxtHelper->DrawTextLine( debugStr );
 	g_pTxtHelper->End();
 	DXUT_EndPerfEvent();
 }
