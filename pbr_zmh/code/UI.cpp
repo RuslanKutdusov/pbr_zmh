@@ -161,6 +161,8 @@ namespace
 				g_globalControls.indirectLightIntensity = g_globalHUD.GetSlider( IDC_INDIRECT_LIGHT_INTENSITY )->GetValue() / 50.0f;
 				swprintf_s( str, MAX_PATH, L"Indirect light intensity: %1.2f", g_globalControls.indirectLightIntensity );
 				g_globalHUD.GetStatic( IDC_INDIRECT_LIGHT_INTENSITY_STATIC )->SetText( str );
+				if( g_onResetSampling )
+					g_onResetSampling();
 				break;
 			}
 			case IDC_DIRECT_LIGHT:

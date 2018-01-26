@@ -44,8 +44,6 @@ float4 Tonemap( float4 pixelPos : SV_Position ) : SV_Target
 		indirectLight.rgb /= indirectLight.a;
 	else
 		indirectLight.rgb = 0;
-		
-	indirectLight.rgb *= IndirectLightIntensity;
 
 	float3 hdr = ( directLight + indirectLight.rgb ) * Exposure;
 	float3 ldr = Tonemap( hdr );

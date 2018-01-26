@@ -63,5 +63,5 @@ void gs_main( triangle VSOutput input[3], inout TriangleStream< GSOutput > TriSt
 
 float4 ps_main( GSOutput input ) : SV_Target
 {
-	return Texture.Sample( LinearWrapSampler, input.normal );
+	return Texture.Sample( LinearWrapSampler, input.normal ) * IndirectLightIntensity;
 }
