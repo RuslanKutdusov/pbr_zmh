@@ -10,6 +10,7 @@
     <ClCompile Include="code\Material.cpp" />
     <ClCompile Include="code\UI.cpp" />
     <ClCompile Include="code\SponzaRenderer.cpp" />
+    <ClCompile Include="code\Model.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
@@ -39,5 +40,6 @@
     <ClInclude Include="code\Material.h" />
     <ClInclude Include="code\UI.h" />
     <ClInclude Include="code\SponzaRenderer.h" />
+    <ClInclude Include="code\Model.h" />
   </ItemGroup>
 </Project>

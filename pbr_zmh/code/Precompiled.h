@@ -10,6 +10,7 @@
 #include "Helpers.h"
 #include "RenderTarget.h"
 #include "Material.h"
+#include "Model.h"
 
 #include "SphereRenderer.h"
 #include "SkyRenderer.h"

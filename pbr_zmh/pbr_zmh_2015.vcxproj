@@ -202,6 +202,7 @@
   <ItemGroup>
     <ClCompile Include="code\Helpers.cpp" />
     <ClCompile Include="code\Material.cpp" />
+    <ClCompile Include="code\Model.cpp" />
     <ClCompile Include="code\pbr_zmh.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -225,6 +226,7 @@
   <ItemGroup>
     <ClInclude Include="code\Helpers.h" />
     <ClInclude Include="code\Material.h" />
+    <ClInclude Include="code\Model.h" />
     <ClInclude Include="code\PostProcess.h" />
     <ClInclude Include="code\Precompiled.h" />
     <ClInclude Include="code\RenderTarget.h" />
