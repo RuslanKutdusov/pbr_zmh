@@ -82,6 +82,25 @@ float3 ImportanceSampleGGX( float2 E, float Roughness, float3 N )
 }
 
 
+float3 ImportanceSampleDiffuse( float2 Xi, float3 N )
+{
+    float CosTheta = 1.0f - Xi.y;
+    float SinTheta = sqrt( 1.0 - CosTheta * CosTheta );
+    float Phi = 2.0f * PI * Xi.x;
+
+    float3 H;
+    H.x = SinTheta * cos( Phi );
+    H.y = SinTheta * sin( Phi );
+    H.z = CosTheta;
+
+    float3 UpVector = abs(N.z) < 0.999 ? float3(0,0,1) : float3(1,0,0);
+    float3 TangentX = normalize( cross( UpVector, N ) );
+    float3 TangentY = cross( N, TangentX );
+
+    return TangentX * H.x + TangentY * H.y + N * H.z;
+}
+
+
 float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualRoughness, float3 albedo, uint2 random )
 {
 	if( SamplesProcessed >= TotalSamples )
@@ -89,6 +108,7 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 
 	float oneMinusReflectivity = ( 1.0f - DIELECTRIC_SPEC ) * ( 1.0f - metalness );
 	float3 specularColor = lerp( DIELECTRIC_SPEC, albedo, metalness );
+	albedo *= oneMinusReflectivity;
 
 	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
 
@@ -96,30 +116,54 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
     EnvironmentMap.GetDimensions(cubeWidth, cubeHeight);
 
 	float3 SpecularLighting = 0;
+	float3 DiffuseLighting = 0;
 	for( uint i = 0; i < SamplesInStep; i++ )
 	{
 		float2 Xi = Hammersley_v1( i + SamplesProcessed, TotalSamples, random );
-		float3 H = ImportanceSampleGGX( Xi, roughness, N );
-		float3 L = 2 * dot( V, H ) * H - V;
-		float NoV = saturate( dot( N, V ) );
-		float NoL = saturate( dot( N, L ) );
-		float NoH = saturate( dot( N, H ) );
-		float VoH = saturate( dot( V, H ) );
-		if( NoL > 0 )
+		// specular
 		{
-			float pdf = GGXTerm( NoH, roughness ) * NoH / (4*VoH);
-            float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
-            float solidAngleSample = 1.0 / (SamplesInStep * pdf);
-            float lod = roughness == 0 ? 0 : 0.5 * log2(solidAngleSample/solidAngleTexel);
-			float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb;
+			float3 H = ImportanceSampleGGX( Xi, roughness, N );
+			float3 L = 2 * dot( V, H ) * H - V;
+			float NoV = saturate( dot( N, V ) );
+			float NoL = saturate( dot( N, L ) );
+			float NoH = saturate( dot( N, H ) );
+			float VoH = saturate( dot( V, H ) );
+			if( NoL > 0 )
+			{
+				float pdf = GGXTerm( NoH, roughness ) * NoH / (4*VoH);
+				
+				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
+				float solidAngleSample = 1.0 / (SamplesInStep * pdf);
+				float lod = roughness == 0 ? 0 : 0.5 * log2(solidAngleSample/solidAngleTexel);
+				float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb;
 
-			float Vis = SmithJointGGXVisibilityTerm( NoL, NoV, roughness );
-			float3 F = FresnelTerm( specularColor, VoH ); 
-			SpecularLighting += SampleColor * F * ( NoL * Vis * (4 * VoH / NoH) );
+				float Vis = SmithJointGGXVisibilityTerm( NoL, NoV, roughness );
+				float3 F = FresnelTerm( specularColor, VoH ); 
+				SpecularLighting += SampleColor * F * ( NoL * Vis * (4 * VoH / NoH) );
+			}
+		}
+		// diffuse
+		{
+			float3 H = ImportanceSampleDiffuse( Xi, N );
+			float3 L = normalize( 2 * dot( V, H ) * H - V );
+			float NoL = saturate( dot( N, L ) );
+			{
+				// Compute Lod using inverse solid angle and pdf.
+				// From Chapter 20.4 Mipmap filtered samples in GPU Gems 3.
+				// http://http.developer.nvidia.com/GPUGems3/gpugems3_ch20.html
+				float pdf = max(0.0, dot(N, L) * INV_PI);
+				
+				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
+				float solidAngleSample = 1.0 / (SamplesInStep * pdf);
+				float lod = 0.5 * log2((float)(solidAngleSample / solidAngleTexel));
+
+				float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler, H, lod ).rgb;
+				DiffuseLighting += SampleColor;
+			}
 		}
 	}
 
-	return float4( SpecularLighting, SamplesInStep );
+	return float4( albedo * DiffuseLighting + SpecularLighting, SamplesInStep );
 }
 
 
