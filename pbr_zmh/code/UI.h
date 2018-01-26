@@ -31,6 +31,7 @@ struct OneSphereSceneControls
 {
 	float metalness				= 1.0f;
 	float roughness				= 0.5f;
+	float reflectance			= 1.0f;
 	DirectX::XMVECTOR albedo	= DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 	bool useMaterial			= false;
 	const wchar_t* material		= L"materials\\default";

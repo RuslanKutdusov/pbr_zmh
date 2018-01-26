@@ -36,6 +36,8 @@ namespace
 		IDC_METALNESS,
 		IDC_ROUGHNESS_STATIC,
 		IDC_ROUGHNESS,
+		IDC_REFLECTANCE_STATIC,
+		IDC_REFLECTANCE,
 		IDC_ALBEDO,
 		IDC_USE_MATERIAL,
 		IDC_MATERIAL,
@@ -226,6 +228,15 @@ namespace
 					g_onResetSampling();
 				break;
 			}
+			case IDC_REFLECTANCE:
+			{
+				g_oneSphereSceneControls.reflectance = g_oneSphereHUD.GetSlider( IDC_REFLECTANCE )->GetValue() / 100.0f;
+				swprintf_s( str, MAX_PATH, L"Reflectance: %1.2f", g_oneSphereSceneControls.reflectance );
+				g_oneSphereHUD.GetStatic( IDC_REFLECTANCE_STATIC )->SetText( str );
+				if( g_onResetSampling )
+					g_onResetSampling();
+				break;
+			}
 			case IDC_ALBEDO:
 			{
 				if( ChooseColor( g_oneSphereSceneControls.albedo ) )
@@ -337,6 +348,10 @@ void UIInit()
 	swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_oneSphereSceneControls.roughness );
 	g_oneSphereHUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
 	g_oneSphereHUD.AddSlider( IDC_ROUGHNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_oneSphereSceneControls.roughness * 100.0f ) );
+
+	swprintf_s( str, MAX_PATH, L"Reflectance: %1.2f", g_oneSphereSceneControls.reflectance );
+	g_oneSphereHUD.AddStatic( IDC_REFLECTANCE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
+	g_oneSphereHUD.AddSlider( IDC_REFLECTANCE, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_oneSphereSceneControls.reflectance * 100.0f ) );
 
 	g_oneSphereHUD.AddButton( IDC_ALBEDO, L"Albedo", 0, iY += 25, HUD_WIDTH, 23 );
 

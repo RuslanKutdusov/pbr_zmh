@@ -8,6 +8,7 @@ cbuffer InstanceParams : register( b1 )
 		float4x4 WorldMatrix;
 		float Metalness;
 		float Roughness;
+		float Reflectance;
 		float4 Albedo;
 		bool UseMaterial;
 		bool3 padding;
@@ -66,6 +67,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 
 	float metalness = 0.0f;
 	float roughness = 0.0f;
+	float reflectance = 1.0f;
 	float3 albedo = 1.0f;
 	if( InstanceData[ input.id ].UseMaterial )
 	{
@@ -81,19 +83,20 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 		albedo = InstanceData[ input.id ].Albedo.rgb;
 		metalness = InstanceData[ input.id ].Metalness;
 		roughness = InstanceData[ input.id ].Roughness;
+		reflectance = InstanceData[ input.id ].Reflectance;
 	}
 	
 	PSOutput output = ( PSOutput )0;
 	if( EnableDirectLight )
 	{
-		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, albedo ) * LightIrradiance.rgb;
+		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb;
 		if( EnableShadow )
 			output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
 	}
 	if( EnableIndirectLight ) 
 	{
 		uint2 random = RandVector_v2( pixelPos.xy );
-		output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, albedo, random );
+		output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random );
 	}
 
 	return output;

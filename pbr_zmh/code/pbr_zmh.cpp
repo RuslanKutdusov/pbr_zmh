@@ -286,6 +286,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	oneSphereInstance.WorldMatrix = XMMatrixIdentity();
 	oneSphereInstance.Metalness = GetOneSphereSceneControls().metalness;
 	oneSphereInstance.Roughness = GetOneSphereSceneControls().roughness;
+	oneSphereInstance.Reflectance = GetOneSphereSceneControls().reflectance;
 	oneSphereInstance.Albedo = GetOneSphereSceneControls().albedo;
 	oneSphereInstance.UseMaterial = GetOneSphereSceneControls().useMaterial;
 	int instanceCounter = 0;
@@ -296,6 +297,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 			multSphereInstances[ instanceCounter ].WorldMatrix = XMMatrixTranslation( x * 2.5f, 0.0f, z * 2.5f );
 			multSphereInstances[ instanceCounter ].Metalness = ( x + 5 ) / 10.0f;
 			multSphereInstances[ instanceCounter ].Roughness = ( z + 5 ) / 10.0f;
+			multSphereInstances[ instanceCounter ].Reflectance = 1.0f;
 			multSphereInstances[ instanceCounter ].Albedo = GetMultipleSphereSceneControls().albedo;
 			multSphereInstances[ instanceCounter ].UseMaterial = false;
 			instanceCounter++;

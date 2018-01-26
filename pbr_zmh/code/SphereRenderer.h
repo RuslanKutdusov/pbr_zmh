@@ -9,7 +9,8 @@ public:
 		DirectX::XMMATRIX WorldMatrix;
 		float Metalness;
 		float Roughness;
-		float padding0[ 2 ];
+		float Reflectance;
+		float padding0[ 1 ];
 		DirectX::XMVECTOR Albedo;
 		UINT UseMaterial;
 		UINT padding1[ 3 ];
