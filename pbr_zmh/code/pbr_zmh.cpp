@@ -2,7 +2,9 @@
 #include "resource.h"
 
 #define GLOBAL_PARAMS_CB 0
+#define SHADOW_MAP 126
 #define ENVIRONMENT_MAP 127
+#define CMP_LINEAR_SAMPLER_STATE 14
 #define LINEAR_WRAP_SAMPLER_STATE 15
 
 #pragma warning( disable : 4100 )
@@ -24,7 +26,8 @@ struct GlobalParams
 	UINT SamplesProcessed;
 	UINT EnableDirectLight;
 	UINT EnableIndirectLight;
-	UINT padding[ 2 ];
+	UINT EnableShadow;
+	UINT padding[ 1 ];
 };
 
 
@@ -35,11 +38,13 @@ CModelViewerCamera                  g_modelViewerCamera;     // A model viewing 
 CFirstPersonCamera					g_firstPersonCamera;
 
 ID3D11Buffer*						g_globalParamsBuf = nullptr;
+GlobalParams						g_cachedGlobalParams;
 ID3D11DepthStencilState*			g_depthPassDepthStencilState = nullptr;
 ID3D11DepthStencilState*			g_lightPassDepthStencilState = nullptr;
 ID3D11RasterizerState*				g_rasterizerState = nullptr;
 ID3D11BlendState*					g_singleRtBlendState = nullptr;
 ID3D11BlendState*					g_doubleRtBlendState = nullptr;
+ID3D11SamplerState*					g_cmpLinearSamplerState = nullptr;
 ID3D11SamplerState*					g_linearWrapSamplerState = nullptr;
 SphereRenderer						g_sphereRenderer;
 SkyRenderer							g_skyRenderer;
@@ -59,7 +64,7 @@ bool g_resetSampling = false;
 XMMATRIX g_lastFrameViewProj;
 const UINT TotalSamples = 128;
 const UINT SamplesInStep = 16;
-const UINT SHADOW_MAP_RESOLUTION = 1024;
+const UINT SHADOW_MAP_RESOLUTION = 4096;
 
 
 //--------------------------------------------------------------------------------------
@@ -153,9 +158,15 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	samplerDesc.MaxAnisotropy = 1;
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
 	samplerDesc.BorderColor[ 0 ] = samplerDesc.BorderColor[ 1 ] = samplerDesc.BorderColor[ 2 ] = samplerDesc.BorderColor[ 3 ] = 0;
-	samplerDesc.MinLOD = 0;
+	samplerDesc.MinLOD = 0.0f;
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &g_linearWrapSamplerState ) );
+
+	samplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	samplerDesc.MaxAnisotropy = 0;
+	samplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS;
+	samplerDesc.MaxLOD = 0.0f;
+	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &g_cmpLinearSamplerState ) );
 
 	D3D11_BLEND_DESC blendDesc;
 	memset( &blendDesc, 0, sizeof( D3D11_BLEND_DESC ) );
@@ -223,6 +234,15 @@ void CALLBACK OnFrameMove( double fTime, float fElapsedTime, void* pUserContext 
 }
 
 
+void FlushGlobalParams( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	D3D11_MAPPED_SUBRESOURCE mappedSubres;
+	pd3dImmediateContext->Map( g_globalParamsBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
+	memcpy( mappedSubres.pData, &g_cachedGlobalParams, sizeof( GlobalParams ) );
+	pd3dImmediateContext->Unmap( g_globalParamsBuf, 0 );
+}
+
+
 void BakeCubeMap( ID3D11DeviceContext* pd3dImmediateContext )
 {
 	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Bake cubemap" );
@@ -233,35 +253,29 @@ void BakeCubeMap( ID3D11DeviceContext* pd3dImmediateContext )
 }
 
 
-XMMATRIX ComputeShadowMatrix()
+void ComputeShadowMatrix()
 {
 	float lightDirVert = ToRad( ( float )GetGlobalControls().lightDirVert );
 	float lightDirHor = ToRad( ( float )GetGlobalControls().lightDirHor );
 	XMVECTOR lightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
 
-	const float depthRange = 1000.0f;
-	XMVECTOR shadowCameraPos = XMVectorScale( lightDir, -0.5f * depthRange );
+	const float width = 40.0f;
+	const float height = 40.0f;
+	const float depthRange = 100.0f;
+	XMVECTOR shadowCameraPos = XMVectorScale( lightDir, 0.5f * depthRange );
 
 	XMMATRIX viewMatrix, projMatrix;
 	viewMatrix = XMMatrixLookAtLH( shadowCameraPos, XMVectorZero(), XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f ) );
-	projMatrix = XMMatrixOrthographicLH( SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, 1.0f, depthRange );
+	projMatrix = XMMatrixOrthographicLH( width, height, 1.0f, depthRange );
 
 	XMMATRIX lsOffset;
-	lsOffset.r[ 1 ] = XMVectorSet( 0.5f, 0.0f, 0.0f, 0.0f );
-	lsOffset.r[ 2 ] = XMVectorSet( 0.0f, -0.5f, 0.0f, 0.0f );
-	lsOffset.r[ 3 ] = XMVectorSet( 0.5f, 0.0f, 1.0f, 0.0f );
-	lsOffset.r[ 4 ] = XMVectorSet( 0.5f, 0.5f, 0.0f, 1.0f );
+	lsOffset.r[ 0 ] = XMVectorSet( 0.5f,  0.0f, 0.0f, 0.0f );
+	lsOffset.r[ 1 ] = XMVectorSet( 0.0f, -0.5f, 0.0f, 0.0f );
+	lsOffset.r[ 2 ] = XMVectorSet( 0.0f,  0.0f, 1.0f, 0.0f );
+	lsOffset.r[ 3 ] = XMVectorSet( 0.5f,  0.5f, 0.0f, 1.0f );
 
-	return XMMatrixMultiply( XMMatrixMultiply( viewMatrix, projMatrix ), lsOffset );
-}
-
-
-void RenderShadow( ID3D11DeviceContext* pd3dImmediateContext )
-{
-	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Shadow pass" );
-
-
-	DXUT_EndPerfEvent();
+	g_cachedGlobalParams.ViewProjMatrix = XMMatrixMultiply( viewMatrix, projMatrix );
+	g_cachedGlobalParams.ShadowMatrix = XMMatrixMultiply( g_cachedGlobalParams.ViewProjMatrix, lsOffset );
 }
 
 
@@ -293,17 +307,38 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 	// shadow pass
 	{
 		DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Shadow pass" );
+		ID3D11ShaderResourceView* nullSrv = nullptr;
+		pd3dImmediateContext->PSSetShaderResources( SHADOW_MAP, 1, &nullSrv );
 		ID3D11RenderTargetView* rtv[ 2 ] = { nullptr, nullptr };
 		pd3dImmediateContext->OMSetRenderTargets( 2, rtv, g_shadowMap.dsv );
 		pd3dImmediateContext->ClearDepthStencilView( g_shadowMap.dsv, D3D11_CLEAR_DEPTH, 1.0, 0 );
 		pd3dImmediateContext->OMSetDepthStencilState( g_depthPassDepthStencilState, 0 );
 
-		if( GetGlobalControls().drawSky )
-			g_skyRenderer.RenderDepthPass( pd3dImmediateContext );
+		D3D11_VIEWPORT savedViewport;
+		UINT numViewports = 1;
+		pd3dImmediateContext->RSGetViewports( &numViewports, &savedViewport );
+		D3D11_VIEWPORT viewport;
+		viewport.TopLeftX = 0;
+		viewport.TopLeftY = 0;
+		viewport.Width = SHADOW_MAP_RESOLUTION;
+		viewport.Height = SHADOW_MAP_RESOLUTION;
+		viewport.MinDepth = 0.0f;
+		viewport.MaxDepth = 1.0f;
+		pd3dImmediateContext->RSSetViewports( 1, &viewport );
+
+		XMMATRIX savedViewProj = g_cachedGlobalParams.ViewProjMatrix;
+		ComputeShadowMatrix();
+		FlushGlobalParams( pd3dImmediateContext );
+
 		if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE || GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
 			g_sphereRenderer.RenderDepthPass( sphereInstances, numSphereInstances, pd3dImmediateContext );
 		if( GetGlobalControls().sceneType == SCENE_SPONZA )
 			g_sponzaRenderer.RenderDepthPass( pd3dImmediateContext );
+
+		g_cachedGlobalParams.ViewProjMatrix = savedViewProj;
+		FlushGlobalParams( pd3dImmediateContext );
+
+		pd3dImmediateContext->RSSetViewports( 1, &savedViewport );
 
 		DXUT_EndPerfEvent();
 	}
@@ -337,6 +372,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 		pd3dImmediateContext->OMSetDepthStencilState( g_lightPassDepthStencilState, 0 );
 
 		ID3D11ShaderResourceView* environmentMap = g_skyRenderer.GetCubeMapSRV();
+		pd3dImmediateContext->PSSetShaderResources( SHADOW_MAP, 1, &g_shadowMap.srv );
 		pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
 		pd3dImmediateContext->OMSetBlendState( g_doubleRtBlendState, nullptr, ~0u );
 
@@ -388,33 +424,28 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->RSSetState( g_rasterizerState );
 	pd3dImmediateContext->OMSetDepthStencilState( g_lightPassDepthStencilState, 0 );
 	pd3dImmediateContext->OMSetBlendState( g_singleRtBlendState, nullptr, ~0u );
+	pd3dImmediateContext->PSSetSamplers( CMP_LINEAR_SAMPLER_STATE, 1, &g_cmpLinearSamplerState );
 	pd3dImmediateContext->PSSetSamplers( LINEAR_WRAP_SAMPLER_STATE, 1, &g_linearWrapSamplerState );
+	pd3dImmediateContext->VSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
+	pd3dImmediateContext->PSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
 
 	// update global params
 	{
-		D3D11_MAPPED_SUBRESOURCE mappedSubres;
-		pd3dImmediateContext->Map( g_globalParamsBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
-
-		GlobalParams* globalParams = ( GlobalParams* )mappedSubres.pData;
-		globalParams->ViewProjMatrix = viewProj;
-		globalParams->ViewPos = currentCamera->GetEyePt();
+		g_cachedGlobalParams.ViewProjMatrix = viewProj;
+		g_cachedGlobalParams.ViewPos = currentCamera->GetEyePt();
 		float lightDirVert = ToRad( ( float )GetGlobalControls().lightDirVert );
 		float lightDirHor = ToRad( ( float )GetGlobalControls().lightDirHor );
-		globalParams->LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
-		globalParams->LightIrradiance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIrradiance );
-		globalParams->ShadowMatrix = ComputeShadowMatrix();
-		globalParams->FrameIdx = g_frameIdx;
-		globalParams->TotalSamples = TotalSamples;
-		globalParams->SamplesInStep = SamplesInStep;
-		globalParams->SamplesProcessed = g_samplesProcessed;
-		globalParams->EnableDirectLight = GetGlobalControls().enableDirectLight;
-		globalParams->EnableIndirectLight = GetGlobalControls().enableIndirectLight;
-
-		pd3dImmediateContext->Unmap( g_globalParamsBuf, 0 );
-
-		// apply
-		pd3dImmediateContext->VSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
-		pd3dImmediateContext->PSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
+		g_cachedGlobalParams.LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
+		g_cachedGlobalParams.LightIrradiance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIrradiance );
+		g_cachedGlobalParams.ShadowMatrix = XMMatrixIdentity();
+		g_cachedGlobalParams.FrameIdx = g_frameIdx;
+		g_cachedGlobalParams.TotalSamples = TotalSamples;
+		g_cachedGlobalParams.SamplesInStep = SamplesInStep;
+		g_cachedGlobalParams.SamplesProcessed = g_samplesProcessed;
+		g_cachedGlobalParams.EnableDirectLight = GetGlobalControls().enableDirectLight;
+		g_cachedGlobalParams.EnableIndirectLight = GetGlobalControls().enableIndirectLight;
+		g_cachedGlobalParams.EnableShadow = GetGlobalControls().enableShadow;
+		FlushGlobalParams( pd3dImmediateContext );
 	}
 
 	BakeCubeMap( pd3dImmediateContext );
@@ -460,6 +491,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_singleRtBlendState );
 	SAFE_RELEASE( g_doubleRtBlendState );
 	SAFE_RELEASE( g_linearWrapSamplerState );
+	SAFE_RELEASE( g_cmpLinearSamplerState );
 	g_directLightRenderTarget.Release();
 	g_indirectLightRenderTarget.Release();
 	g_shadowMap.Release();

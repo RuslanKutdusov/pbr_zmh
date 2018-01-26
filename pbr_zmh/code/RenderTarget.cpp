@@ -59,7 +59,7 @@ HRESULT DepthRenderTarget::Init( ID3D11Device* pd3dDevice, UINT width, UINT heig
 	texDesc.ArraySize = 1;
 	texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
 	texDesc.Usage = D3D11_USAGE_DEFAULT;
-	texDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	texDesc.Format = DXGI_FORMAT_R32_TYPELESS;
 	texDesc.Width = width;
 	texDesc.Height = height;
 	texDesc.MipLevels = 1;
@@ -69,8 +69,8 @@ HRESULT DepthRenderTarget::Init( ID3D11Device* pd3dDevice, UINT width, UINT heig
 
 	// Create the depth stencil view
 	D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-	ZeroMemory( &texDesc, sizeof( D3D11_TEXTURE2D_DESC ) );
-	dsvDesc.Format = texDesc.Format;
+	ZeroMemory( &dsvDesc, sizeof( D3D11_DEPTH_STENCIL_VIEW_DESC ) );
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
 	dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
 	dsvDesc.Texture2D.MipSlice = 0;
 	V_RETURN( pd3dDevice->CreateDepthStencilView( texture, &dsvDesc, &dsv ) );
@@ -78,7 +78,8 @@ HRESULT DepthRenderTarget::Init( ID3D11Device* pd3dDevice, UINT width, UINT heig
 
 	// Create the shader resource view
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-	srvDesc.Format = texDesc.Format;
+	ZeroMemory( &srvDesc, sizeof( D3D11_SHADER_RESOURCE_VIEW_DESC ) );
+	srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 	srvDesc.Texture2D.MostDetailedMip = 0;

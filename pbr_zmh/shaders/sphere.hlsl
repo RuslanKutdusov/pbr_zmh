@@ -85,7 +85,11 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	
 	PSOutput output = ( PSOutput )0;
 	if( EnableDirectLight )
+	{
 		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, albedo ) * LightIrradiance.rgb;
+		if( EnableShadow )
+			output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
+	}
 	if( EnableIndirectLight ) 
 	{
 		uint2 random = RandVector_v2( pixelPos.xy );

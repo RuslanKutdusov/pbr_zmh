@@ -13,7 +13,7 @@ cbuffer GlobalParams : register( b0 )
 	uint SamplesProcessed;
 	bool EnableDirectLight;
 	bool EnableIndirectLight;
-	bool IsShadowPass;
+	bool EnableShadow;
 	bool padding;
 };
 
@@ -27,5 +27,7 @@ struct SdkMeshVertex
 	float3 binormal : BINORMAL;
 };
 
+Texture2D ShadowMap : register( t126 );
 TextureCube EnvironmentMap : register( t127 );
+SamplerComparisonState CmpLinearSampler : register( s14 );
 SamplerState LinearWrapSampler : register( s15 );

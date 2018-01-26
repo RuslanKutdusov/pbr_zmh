@@ -121,3 +121,25 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 
 	return float4( SpecularLighting, SamplesInStep );
 }
+
+
+
+float CalcShadow( float3 worldPos, float3 normal )
+{	
+	float4 pos = float4( worldPos, 1.0f );
+	float3 uv = mul( pos, ShadowMatrix ).xyz;
+
+	float2 shadowMapSize;
+    float numSlices;
+    ShadowMap.GetDimensions( 0, shadowMapSize.x, shadowMapSize.y, numSlices );
+    float texelSize = 2.0f / shadowMapSize.x;
+    float nmlOffsetScale = saturate( 1.0f - dot( LightDir.xyz, normal ) );
+	float offsetScale = 1.0f;
+    float3 normalOffset = texelSize * offsetScale * nmlOffsetScale * normal;
+	
+	pos = float4( worldPos + normalOffset, 1.0f );
+	uv.xyz = mul( pos, ShadowMatrix ).xyz;
+	uv.z -= texelSize.x;
+	
+	return ShadowMap.SampleCmpLevelZero( CmpLinearSampler, uv.xy, uv.z );
+}

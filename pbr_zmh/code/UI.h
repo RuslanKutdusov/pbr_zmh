@@ -18,6 +18,7 @@ struct GlobalControls
 	DirectX::XMVECTOR lightColor = DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 	bool enableDirectLight		= true;
 	bool enableIndirectLight	= true;
+	bool enableShadow			= true;
 	float exposure				= 1.0f;
 	bool drawSky				= true;
 	const wchar_t* skyTexture	= L"";

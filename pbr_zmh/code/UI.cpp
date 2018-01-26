@@ -23,6 +23,7 @@ namespace
 		IDC_LIGHT_COLOR,
 		IDC_DIRECT_LIGHT,
 		IDC_INDIRECT_LIGHT,
+		IDC_ENABLE_SHADOW,
 		IDC_EXPOSURE_STATIC,
 		IDC_EXPOSURE,
 		IDC_DRAW_SKY,
@@ -165,6 +166,11 @@ namespace
 					g_onResetSampling();
 				break;
 			}
+			case IDC_ENABLE_SHADOW:
+			{
+				g_globalControls.enableShadow = g_globalHUD.GetCheckBox( IDC_ENABLE_SHADOW )->GetChecked();
+				break;
+			}
 			case IDC_EXPOSURE:
 			{
 				g_globalControls.exposure = g_globalHUD.GetSlider( IDC_EXPOSURE )->GetValue() / 20.0f;
@@ -295,6 +301,9 @@ void UIInit()
 
 	swprintf_s( str, MAX_PATH, L"Enable indirect light" );
 	g_globalHUD.AddCheckBox( IDC_INDIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableIndirectLight );
+
+	swprintf_s( str, MAX_PATH, L"Enable shadow" );
+	g_globalHUD.AddCheckBox( IDC_ENABLE_SHADOW, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableShadow );
 
 	CDXUTComboBox* sceneComboBox;
 	g_globalHUD.AddComboBox( IDC_SCENE_TYPE, 0, iY += 24, HUD_WIDTH, 22, 0, false, &sceneComboBox );
