@@ -20,6 +20,7 @@ struct GlobalParams
 	XMVECTOR LightDir;
 	XMVECTOR LightIrradiance;
 	XMMATRIX ShadowMatrix;
+	float IndirectLightIntensity;
 	UINT FrameIdx;
 	UINT TotalSamples;
 	UINT SamplesInStep;
@@ -27,7 +28,6 @@ struct GlobalParams
 	UINT EnableDirectLight;
 	UINT EnableIndirectLight;
 	UINT EnableShadow;
-	UINT padding[ 1 ];
 };
 
 
@@ -438,6 +438,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		g_cachedGlobalParams.LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
 		g_cachedGlobalParams.LightIrradiance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIrradiance );
 		g_cachedGlobalParams.ShadowMatrix = XMMatrixIdentity();
+		g_cachedGlobalParams.IndirectLightIntensity = GetGlobalControls().indirectLightIntensity;
 		g_cachedGlobalParams.FrameIdx = g_frameIdx;
 		g_cachedGlobalParams.TotalSamples = TotalSamples;
 		g_cachedGlobalParams.SamplesInStep = SamplesInStep;

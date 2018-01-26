@@ -78,7 +78,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	}
 	else
 	{
-		albedo = InstanceData[ input.id ].Albedo;
+		albedo = InstanceData[ input.id ].Albedo.rgb;
 		metalness = InstanceData[ input.id ].Metalness;
 		roughness = InstanceData[ input.id ].Roughness;
 	}

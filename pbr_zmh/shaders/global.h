@@ -7,6 +7,7 @@ cbuffer GlobalParams : register( b0 )
 	float4 LightDir;
 	float4 LightIrradiance;
 	float4x4 ShadowMatrix;
+	float IndirectLightIntensity;
 	uint FrameIdx;
 	uint TotalSamples;
 	uint SamplesInStep;
@@ -14,7 +15,6 @@ cbuffer GlobalParams : register( b0 )
 	bool EnableDirectLight;
 	bool EnableIndirectLight;
 	bool EnableShadow;
-	bool padding;
 };
 
 
