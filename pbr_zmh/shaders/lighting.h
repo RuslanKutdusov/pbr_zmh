@@ -58,7 +58,12 @@ float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float per
 	float3 F = FresnelTerm( specularColor, VoH );
 	float3 Fs = Vis * D * F * NoL;
 
-	return Fd + Fs;
+	float3 sum = 0;
+	if( EnableDiffuseLight )
+		sum += Fd;
+	if( EnableSpecularLight )
+		sum += Fs;
+	return sum;
 }
 
 
@@ -165,7 +170,12 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 		}
 	}
 
-	return float4( albedo * DiffuseLighting + SpecularLighting, SamplesInStep );
+	float3 sum = 0;
+	if( EnableDiffuseLight )
+		sum += albedo * DiffuseLighting;
+	if( EnableSpecularLight )
+		sum += SpecularLighting;
+	return float4( sum, SamplesInStep );
 }
 
 

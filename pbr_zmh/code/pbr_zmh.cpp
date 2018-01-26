@@ -28,6 +28,9 @@ struct GlobalParams
 	UINT EnableDirectLight;
 	UINT EnableIndirectLight;
 	UINT EnableShadow;
+	UINT EnableDiffuseLight;
+	UINT EnableSpecularLight;
+	UINT padding[ 2 ];
 };
 
 
@@ -448,6 +451,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		g_cachedGlobalParams.EnableDirectLight = GetGlobalControls().enableDirectLight;
 		g_cachedGlobalParams.EnableIndirectLight = GetGlobalControls().enableIndirectLight;
 		g_cachedGlobalParams.EnableShadow = GetGlobalControls().enableShadow;
+		g_cachedGlobalParams.EnableDiffuseLight = GetGlobalControls().enableDiffuseLight;
+		g_cachedGlobalParams.EnableSpecularLight = GetGlobalControls().enableSpecularLight;
 		FlushGlobalParams( pd3dImmediateContext );
 	}
 

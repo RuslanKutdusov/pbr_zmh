@@ -15,6 +15,9 @@ cbuffer GlobalParams : register( b0 )
 	bool EnableDirectLight;
 	bool EnableIndirectLight;
 	bool EnableShadow;
+	bool EnableDiffuseLight;
+	bool EnableSpecularLight;
+	bool2 padding;
 };
 
 

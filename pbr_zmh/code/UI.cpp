@@ -23,6 +23,8 @@ namespace
 		IDC_LIGHT_COLOR,
 		IDC_DIRECT_LIGHT,
 		IDC_INDIRECT_LIGHT,
+		IDC_ENABLE_DIFFUSE_LIGHT,
+		IDC_ENABLE_SPECULAR_LIGHT,
 		IDC_ENABLE_SHADOW,
 		IDC_EXPOSURE_STATIC,
 		IDC_EXPOSURE,
@@ -179,6 +181,20 @@ namespace
 					g_onResetSampling();
 				break;
 			}
+			case IDC_ENABLE_DIFFUSE_LIGHT:
+			{
+				g_globalControls.enableDiffuseLight = g_globalHUD.GetCheckBox( IDC_ENABLE_DIFFUSE_LIGHT )->GetChecked();
+				if( g_onResetSampling )
+					g_onResetSampling();
+				break;
+			}
+			case IDC_ENABLE_SPECULAR_LIGHT:
+			{
+				g_globalControls.enableSpecularLight = g_globalHUD.GetCheckBox( IDC_ENABLE_SPECULAR_LIGHT )->GetChecked();
+				if( g_onResetSampling )
+					g_onResetSampling();
+				break;
+			}
 			case IDC_ENABLE_SHADOW:
 			{
 				g_globalControls.enableShadow = g_globalHUD.GetCheckBox( IDC_ENABLE_SHADOW )->GetChecked();
@@ -327,6 +343,12 @@ void UIInit()
 
 	swprintf_s( str, MAX_PATH, L"Enable indirect light" );
 	g_globalHUD.AddCheckBox( IDC_INDIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableIndirectLight );
+
+	swprintf_s( str, MAX_PATH, L"Enable diffuse light" );
+	g_globalHUD.AddCheckBox( IDC_ENABLE_DIFFUSE_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableDiffuseLight );
+
+	swprintf_s( str, MAX_PATH, L"Enable specular light" );
+	g_globalHUD.AddCheckBox( IDC_ENABLE_SPECULAR_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableSpecularLight );
 
 	swprintf_s( str, MAX_PATH, L"Enable shadow" );
 	g_globalHUD.AddCheckBox( IDC_ENABLE_SHADOW, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableShadow );

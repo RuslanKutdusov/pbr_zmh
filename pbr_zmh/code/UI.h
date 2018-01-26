@@ -20,6 +20,8 @@ struct GlobalControls
 	bool enableDirectLight		= true;
 	bool enableIndirectLight	= true;
 	bool enableShadow			= true;
+	bool enableDiffuseLight		= true;
+	bool enableSpecularLight	= true;
 	float exposure				= 1.0f;
 	bool drawSky				= true;
 	const wchar_t* skyTexture	= L"";
