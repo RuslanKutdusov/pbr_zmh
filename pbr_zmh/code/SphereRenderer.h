@@ -30,7 +30,7 @@ private:
 	ID3D11VertexShader* m_vs = nullptr;
 	ID3D11PixelShader* m_ps = nullptr;
 	ID3D11Buffer* m_instanceBuf = nullptr;
-	CDXUTSDKMesh m_sphereMesh;
+	Model m_sphereModel;
 
 	void    Render( InstanceParams* instancesParams, UINT numInstances, ID3D11PixelShader* ps, ID3D11DeviceContext* pd3dImmediateContext );
 };

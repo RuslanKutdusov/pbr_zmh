@@ -24,7 +24,7 @@ public:
 	ID3D11PixelShader* m_ps = nullptr;
 	ID3D11ShaderResourceView* m_skyTextureSRV = nullptr;
 	ID3D11Buffer* m_instanceBuf = nullptr;
-	CDXUTSDKMesh m_sphereMesh;
+	Model m_sphereModel;
 	ID3D11Texture2D* m_cubeMapTexture;
 	ID3D11RenderTargetView* m_cubeMapRTV;
 	ID3D11ShaderResourceView* m_cubeMapSRV;

@@ -23,7 +23,7 @@ HRESULT SphereRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &m_instanceBuf ) );
 	DXUT_SetDebugName( m_instanceBuf, "InstanceParams" );
 
-	V_RETURN( m_sphereMesh.Create( pd3dDevice, L"Misc\\sphere.sdkmesh" ) );
+	V_RETURN( m_sphereModel.Load( pd3dDevice, L"Misc", L"sphere.obj", false, TextureMapping() ) );
 
 	return S_OK;
 }
@@ -32,12 +32,6 @@ HRESULT SphereRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 void SphereRenderer::Render( InstanceParams* instancesParams, UINT numInstances, ID3D11PixelShader* ps, ID3D11DeviceContext* pd3dImmediateContext )
 {
 	pd3dImmediateContext->IASetInputLayout( m_inputLayout );
-
-	ID3D11Buffer* pVB = m_sphereMesh.GetVB11( 0, 0 );
-	UINT Strides = ( UINT )m_sphereMesh.GetVertexStride( 0, 0 );
-	UINT Offsets = 0;
-	pd3dImmediateContext->IASetVertexBuffers( 0, 1, &pVB, &Strides, &Offsets );
-	pd3dImmediateContext->IASetIndexBuffer( m_sphereMesh.GetIB11( 0 ), m_sphereMesh.GetIBFormat11( 0 ), 0 );
 
 	{
 		D3D11_MAPPED_SUBRESOURCE mappedSubres;
@@ -53,15 +47,12 @@ void SphereRenderer::Render( InstanceParams* instancesParams, UINT numInstances,
 	pd3dImmediateContext->VSSetShader( m_vs, nullptr, 0 );
 	pd3dImmediateContext->PSSetShader( ps, nullptr, 0 );
 
-	for( UINT subset = 0; subset < m_sphereMesh.GetNumSubsets( 0 ); ++subset )
+	for( uint32_t i = 0; i < m_sphereModel.meshesNum; i++ )
 	{
-		// Get the subset
-		auto pSubset = m_sphereMesh.GetSubset( 0, subset );
-
-		auto PrimType = CDXUTSDKMesh::GetPrimitiveType11( ( SDKMESH_PRIMITIVE_TYPE )pSubset->PrimitiveType );
-		pd3dImmediateContext->IASetPrimitiveTopology( PrimType );
-
-		pd3dImmediateContext->DrawIndexedInstanced( ( UINT )pSubset->IndexCount, numInstances, 0, ( UINT )pSubset->VertexStart, 0 );
+		Mesh& mesh = m_sphereModel.meshes[ i ];
+		mesh.Apply( pd3dImmediateContext );
+		pd3dImmediateContext->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+		pd3dImmediateContext->DrawIndexedInstanced( mesh.indexCount, numInstances, 0, 0, 0 );
 	}
 }
 
@@ -94,7 +85,7 @@ void SphereRenderer::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_vs );
 	SAFE_RELEASE( m_ps );
 	SAFE_RELEASE( m_instanceBuf );
-	m_sphereMesh.Destroy();
+	m_sphereModel.Release();
 }
 
 
@@ -118,11 +109,11 @@ HRESULT	SphereRenderer::ReloadShaders( ID3D11Device* pd3dDevice )
 
 	const D3D11_INPUT_ELEMENT_DESC elementsDesc[] =
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXTURE", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "BINORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "POSITION",	0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "NORMAL",		0, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TEXTURE",	0, DXGI_FORMAT_R32G32_FLOAT,	2, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT",	0, DXGI_FORMAT_R32G32B32_FLOAT, 3, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "BINORMAL",	0, DXGI_FORMAT_R32G32B32_FLOAT, 4, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 	};
 	int iNumElements = sizeof( elementsDesc ) / sizeof( D3D11_INPUT_ELEMENT_DESC );
 
