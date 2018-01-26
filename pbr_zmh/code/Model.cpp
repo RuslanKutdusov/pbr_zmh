@@ -21,7 +21,7 @@ HRESULT Model::Load( ID3D11Device* pd3dDevice, const wchar_t* folder, const wcha
 	char fullPathA[ MAX_PATH ];
 	sprintf_s( fullPathA, "%ws", fullPath );
 
-	int flags = aiProcess_FlipWindingOrder | aiProcess_Triangulate | aiProcess_PreTransformVertices | aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals;
+	int flags = aiProcess_Triangulate | aiProcess_PreTransformVertices | aiProcess_CalcTangentSpace ;
 	const aiScene* aScene = Importer.ReadFile( fullPathA, flags );
 
 	if( loadMaterials )
@@ -116,9 +116,9 @@ HRESULT Model::Load( ID3D11Device* pd3dDevice, const wchar_t* folder, const wcha
 			indices.resize( numIndices );
 		for( uint32_t f = 0; f < mesh->mNumFaces; f++ )
 		{
-			indices[ f * 3 + 0 ] = mesh->mFaces[ f ].mIndices[ 2 ];
+			indices[ f * 3 + 0 ] = mesh->mFaces[ f ].mIndices[ 0 ];
 			indices[ f * 3 + 1 ] = mesh->mFaces[ f ].mIndices[ 1 ];
-			indices[ f * 3 + 2 ] = mesh->mFaces[ f ].mIndices[ 0 ];
+			indices[ f * 3 + 2 ] = mesh->mFaces[ f ].mIndices[ 2 ];
 		}
 		data.pSysMem = indices.data();
 		V_RETURN( pd3dDevice->CreateBuffer( &desc, &data, &meshes[ i ].ib ) );
