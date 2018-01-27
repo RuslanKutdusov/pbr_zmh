@@ -154,11 +154,12 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 			float3 H = ImportanceSampleDiffuse( Xi, N );
 			float3 L = normalize( 2 * dot( V, H ) * H - V );
 			float NoL = saturate( dot( N, L ) );
+			if( NoL > 0 )
 			{
 				// Compute Lod using inverse solid angle and pdf.
 				// From Chapter 20.4 Mipmap filtered samples in GPU Gems 3.
 				// http://http.developer.nvidia.com/GPUGems3/gpugems3_ch20.html
-				float pdf = max(0.0, dot(N, L) * INV_PI);
+				float pdf = NoL * INV_PI;
 				
 				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
 				float solidAngleSample = 1.0 / (SamplesInStep * pdf);
