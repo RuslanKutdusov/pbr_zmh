@@ -89,6 +89,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	PSOutput output = ( PSOutput )0;
 	if( EnableDirectLight )
 	{
+		// Lo = ( Fd + Fs ) * (n,l) * E
 		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb;
 		if( EnableShadow )
 			output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );

@@ -10,8 +10,13 @@ float PerceptualRoughnessToRoughness( float perceptualRoughness ) {
 }
 
 
+// тут разные формулы для D, F, G
+// http://graphicrants.blogspot.ru/2013/08/specular-brdf-reference.html
+
+
 // Ref: http://jcgt.org/published/0003/02/03/paper.pdf
-float SmithJointGGXVisibilityTerm( float NoL, float NoV, float roughness ) {
+// Vis = G / ( 4 * NoL * NoV )
+float Vis_SmithJointGGX( float NoL, float NoV, float roughness ) {
 	// Approximised version
 	float a = roughness;
 	float lambdaV = NoL * ( NoV * ( 1.0f - a ) + a );
@@ -20,25 +25,57 @@ float SmithJointGGXVisibilityTerm( float NoL, float NoV, float roughness ) {
 }
 
 
-float GGXTerm( float NoH, float roughness ) {
+float D_GGX( float NoH, float roughness ) {
 	float a2 = roughness * roughness;
 	float d = ( NoH * a2 - NoH ) * NoH + 1.0f; // 2 mad
 	return INV_PI * a2 / ( d * d );
 }
 
 
-float3 FresnelTerm( float3 F0, float VoH ) {
+float3 F_Schlick( float3 F0, float VoH ) {
 	float Fc = pow( 1 - VoH, 5 );
 	return (1 - Fc) * F0 + Fc;
 }
 
 
-float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float perceptualRoughness, float reflectance, float3 albedo )
+void CalcCdiffAndF0( float3 albedo, float metalness, float reflectance, out float3 cDiff, out float3 F0 )
 {
+	// albedo для диэлектриков это цвет поверхности, а для
+	// металлов это F0.
+	// Т.к есть параметр metalness, который равен 0, если поверхность
+	// диэлектрик, а если 1 - металл. Он позволяет задать что между
+	// диэлектриком и металлом и нам нужно как распределить albedo 
+	// между цветом поверхности и F0. 
+	// У диэлектриков F0 не бывает меньше ~0.04, но иногда хочется
+	// погасить F0 для них еще сильнее, для этого есть параметр reflectance
 	float dielectricSpec = DIELECTRIC_SPEC * reflectance;
 	float oneMinusReflectivity = ( 1.0f - dielectricSpec ) * ( 1.0f - metalness );
-	float3 specularColor = lerp( dielectricSpec, albedo, metalness );
-	albedo *= oneMinusReflectivity;
+	F0 = lerp( dielectricSpec, albedo, metalness );
+	cDiff = albedo * oneMinusReflectivity;
+}
+
+
+// вычисление яркости(radiance) рассеянного(diffuse) и отраженного(specular) света
+// от поверхности, освещенной точечным, spot или направленным источником света:
+// ( Fd + Fs ) * (n,l) * L * dw
+// Fd - diffuse BRDF
+// Fs - specular BRDF
+// L - radiance от источника света, dw - телесный угол.
+// E = L * dw - irradiance от источника.
+// для точечных источников или spot light:
+//         Ф
+// E = -------------
+//      4 * pi * r^2
+// Ф - поток излучения, Ватт.
+// r - расстояние от источника до поверхности
+// Для направленных E задается как параметр.
+// Функция вычисляет ( Fd + Fs ) * (n,l)
+// Итого чтобы вычислить radiance рассеянного(diffuse) и отраженного(specular) света:
+// CalcDirectLight(..) * E.
+float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float perceptualRoughness, float reflectance, float3 albedo )
+{
+	float3 cDiff, F0;
+	CalcCdiffAndF0( albedo, metalness, reflectance, cDiff, F0 );
 	
 	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
 	roughness = max(roughness, 1e-06);
@@ -50,20 +87,22 @@ float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float per
 	float VoH = saturate( dot( V, H ) );
 
 	// Lambert diffuse
-	float3 Fd = NoL * albedo / PI;
+	float3 Fd = cDiff / PI;
 
-	// Specular term
-	float Vis = SmithJointGGXVisibilityTerm( NoL, NoV, roughness );
-	float D = GGXTerm( NoH, roughness );
-	float3 F = FresnelTerm( specularColor, VoH );
-	float3 Fs = Vis * D * F * NoL;
+	// Micro-facet specular
+	// Vis = G / ( 4 * NoL * NoV )
+	float Vis = Vis_SmithJointGGX( NoL, NoV, roughness );
+	float D = D_GGX( NoH, roughness );
+	float3 F = F_Schlick( F0, VoH );
+	// D * F * G / ( 4 * NoL * NoV ) = Vis * D * F
+	float3 Fs = Vis * D * F;
 
 	float3 sum = 0;
 	if( EnableDiffuseLight )
 		sum += Fd;
 	if( EnableSpecularLight )
 		sum += Fs;
-	return sum;
+	return sum * NoL;
 }
 
 
@@ -107,15 +146,15 @@ float3 ImportanceSampleDiffuse( float2 Xi, float3 N )
 }
 
 
+// Вычисляет radiance от окружения. Тут численно считается интеграл reflectance equation
+// методом Монте-Карло с выборкой по значимости.
 float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualRoughness, float reflectance, float3 albedo, uint2 random )
 {
 	if( SamplesProcessed >= TotalSamples )
 		return 0;
 
-	float dielectricSpec = DIELECTRIC_SPEC * reflectance;
-	float oneMinusReflectivity = ( 1.0f - dielectricSpec ) * ( 1.0f - metalness );
-	float3 specularColor = lerp( dielectricSpec, albedo, metalness );
-	albedo *= oneMinusReflectivity;
+	float3 cDiff, F0;
+	CalcCdiffAndF0( albedo, metalness, reflectance, cDiff, F0 );
 
 	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
 
@@ -137,15 +176,15 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 			float VoH = saturate( dot( V, H ) );
 			if( NoL > 0 )
 			{
-				float pdf = GGXTerm( NoH, roughness ) * NoH / (4*VoH);
+				float pdf = D_GGX( NoH, roughness ) * NoH / (4*VoH);
 				
 				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
 				float solidAngleSample = 1.0 / (SamplesInStep * pdf);
 				float lod = roughness == 0 ? 0 : 0.5 * log2(solidAngleSample/solidAngleTexel);
 				float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb;
 
-				float Vis = SmithJointGGXVisibilityTerm( NoL, NoV, roughness );
-				float3 F = FresnelTerm( specularColor, VoH ); 
+				float Vis = Vis_SmithJointGGX( NoL, NoV, roughness );
+				float3 F = F_Schlick( F0, VoH ); 
 				SpecularLighting += SampleColor * F * ( NoL * Vis * (4 * VoH / NoH) );
 			}
 		}
@@ -173,14 +212,14 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 
 	float3 sum = 0;
 	if( EnableDiffuseLight )
-		sum += albedo * DiffuseLighting;
+		sum += cDiff * DiffuseLighting;
 	if( EnableSpecularLight )
 		sum += SpecularLighting;
 	return float4( sum, SamplesInStep );
 }
 
 
-
+// Тень от направленного источника света
 float CalcShadow( float3 worldPos, float3 normal )
 {	
 	float4 pos = float4( worldPos, 1.0f );

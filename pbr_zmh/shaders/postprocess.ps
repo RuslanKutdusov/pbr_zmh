@@ -38,7 +38,9 @@ float3 Tonemap( float3 LinearColor )
 
 float4 Tonemap( float4 pixelPos : SV_Position ) : SV_Target
 {
+	// объединяем освещение от направленного источника света, точечных 
 	float3 directLight = DirectLightTexture.Load( int3( pixelPos.xy, 0 ) ).rgb;
+	// ... и освещения от окружения
 	float4 indirectLight = IndirectLightTexture.Load( int3( pixelPos.xy, 0 ) );
 	if( indirectLight.a > 0 )
 		indirectLight.rgb /= indirectLight.a;
