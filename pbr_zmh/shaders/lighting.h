@@ -44,7 +44,7 @@ float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float per
 	roughness = max(roughness, 1e-06);
 
 	float3 H = normalize( V + L );
-	float NoV = saturate( dot( N, V ) );
+	float NoV = abs( dot( N, V ) ) + 1e-5f;
 	float NoL = saturate( dot( N, L ) );
 	float NoH = saturate( dot( N, H ) );
 	float VoH = saturate( dot( V, H ) );
@@ -131,7 +131,7 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 		{
 			float3 H = ImportanceSampleGGX( Xi, roughness, N );
 			float3 L = 2 * dot( V, H ) * H - V;
-			float NoV = saturate( dot( N, V ) );
+			float NoV = abs( dot( N, V ) ) + 1e-5f;
 			float NoL = saturate( dot( N, L ) );
 			float NoH = saturate( dot( N, H ) );
 			float VoH = saturate( dot( V, H ) );
