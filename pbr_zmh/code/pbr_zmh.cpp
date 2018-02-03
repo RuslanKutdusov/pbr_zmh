@@ -309,6 +309,10 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 	SphereRenderer::InstanceParams* sphereInstances = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? &oneSphereInstance : &multSphereInstances[ 0 ];
 	UINT numSphereInstances = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? 1 : 11 * 11;
 
+	XMMATRIX metalnessPlane = XMMatrixTranslation( -11.0f, 0.0f, -15.0f );
+	XMMATRIX rotation = XMMatrixRotationY( XM_PIDIV2 + XM_PI );
+	XMMATRIX roughnessPlane = XMMatrixMultiply( rotation, XMMatrixTranslation( -15.0f, 0.0f, -11.0f ) );
+
 	// shadow pass
 	{
 		DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Shadow pass" );
@@ -363,6 +367,9 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 		if( GetGlobalControls().sceneType == SCENE_SPONZA )
 			g_sponzaRenderer.RenderDepthPass( pd3dImmediateContext );
 
+		if( GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
+			g_sphereRenderer.RenderPlaneDepthPass( metalnessPlane, roughnessPlane, pd3dImmediateContext );
+
 		DXUT_EndPerfEvent();
 	}
 
@@ -393,6 +400,9 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 			XMVECTOR pointLightFlux = XMVectorScale( GetSponzaSceneControls().pointLightColor, GetSponzaSceneControls().pointLightFlux );
 			g_sponzaRenderer.RenderLightPass( pd3dImmediateContext, pointLightFlux, fTime );
 		}
+
+		if( GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
+			g_sphereRenderer.RenderPlaneLightPass( metalnessPlane, roughnessPlane, pd3dImmediateContext );
 
 		DXUT_EndPerfEvent();
 	}
@@ -477,7 +487,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	wchar_t debugStr[ debugStrLen ];
 	memset( debugStr, 0, debugStrLen * sizeof( wchar_t ) );
 	XMVECTOR p = currentCamera->GetEyePt();
-	swprintf_s( debugStr, L"Camera position: %1.2f %1.2f %1.2f", p.m128_f32[ 0 ], p.m128_f32[ 1 ], p.m128_f32[ 3 ] );
+	swprintf_s( debugStr, L"Camera position: %1.2f %1.2f %1.2f", p.m128_f32[ 0 ], p.m128_f32[ 1 ], p.m128_f32[ 2 ] );
 	UIRender( pd3dDevice, pd3dImmediateContext, fElapsedTime, debugStr );
 }
 
