@@ -45,6 +45,10 @@ namespace
 		IDC_MATERIAL,
 		// multiple sphere scene controls
 		IDC_MS_ALBEDO,
+		// spozna scene controls
+		IDC_POINT_LIGHT_FLUX_STATIC,
+		IDC_POINT_LIGHT_FLUX,
+		IDC_POINT_LIGHT_COLOR,
 	};
 	const int HUD_WIDTH = 250;
 
@@ -80,6 +84,7 @@ namespace
 	GlobalControls				g_globalControls;
 	OneSphereSceneControls		g_oneSphereSceneControls;
 	MultipleSphereSceneControls g_multipleSphereSceneControls;
+	SponzaSceneControls			g_sponzaSceneControls;
 
 	CDXUTDialogResourceManager	g_DialogResourceManager; // manager for shared resources of dialogs
 	CD3DSettingsDlg				g_D3DSettingsDlg;       // Device settings dialog
@@ -89,6 +94,8 @@ namespace
 	UINT						g_oneSphereHUDHeight;
 	CDXUTDialog                 g_multipleSphereHUD;
 	UINT						g_multipleSphereHUDHeight;
+	CDXUTDialog                 g_sponzaHUD;
+	UINT						g_sponzaHUDHeight;
 	CDXUTTextHelper*            g_pTxtHelper = nullptr;
 
 	UICallback					g_onShaderReload = nullptr;
@@ -286,6 +293,19 @@ namespace
 				}
 				break;
 			}
+			// sponza scene controls
+			case IDC_POINT_LIGHT_FLUX:
+			{
+				g_sponzaSceneControls.pointLightFlux = g_sponzaHUD.GetSlider( IDC_POINT_LIGHT_FLUX )->GetValue() / 5.0f;
+				swprintf_s( str, MAX_PATH, L"Point light flux( Watt ): %1.2f", g_sponzaSceneControls.pointLightFlux );
+				g_sponzaHUD.GetStatic( IDC_POINT_LIGHT_FLUX_STATIC )->SetText( str );
+				break;
+			}
+			case IDC_POINT_LIGHT_COLOR:
+			{
+				ChooseColor( g_sponzaSceneControls.pointLightColor );
+				break;
+			}
 		}
 	}
 }
@@ -300,6 +320,8 @@ void UIInit()
 	g_oneSphereHUD.SetCallback( OnGUIEvent );
 	g_multipleSphereHUD.Init( &g_DialogResourceManager );
 	g_multipleSphereHUD.SetCallback( OnGUIEvent );
+	g_sponzaHUD.Init( &g_DialogResourceManager );
+	g_sponzaHUD.SetCallback( OnGUIEvent );
 
 	int iY = 10;
 	g_globalHUD.AddButton( IDC_CHANGEDEVICE, L"Change device (F2)", 0, iY, HUD_WIDTH, 23, VK_F2 );
@@ -390,8 +412,15 @@ void UIInit()
 	//
 	iY = 0;
 	g_multipleSphereHUD.AddButton( IDC_MS_ALBEDO, L"Albedo", 0, iY += 25, HUD_WIDTH, 23 );
-
 	g_multipleSphereHUDHeight = iY;
+
+	//
+	iY = 0;
+	swprintf_s( str, MAX_PATH, L"Point light flux( Watt ): %1.2f", g_sponzaSceneControls.pointLightFlux );
+	g_sponzaHUD.AddStatic( IDC_POINT_LIGHT_FLUX_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
+	g_sponzaHUD.AddSlider( IDC_POINT_LIGHT_FLUX, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_sponzaSceneControls.pointLightFlux * 5.0f ) );
+	g_sponzaHUD.AddButton( IDC_POINT_LIGHT_COLOR, L"Point light color", 0, iY += 25, HUD_WIDTH, 23 );
+	g_sponzaHUDHeight = iY;
 }
 
 
@@ -422,6 +451,9 @@ HRESULT UIOnResizedSwapChain( ID3D11Device* pd3dDevice, const DXGI_SURFACE_DESC*
 
 	g_multipleSphereHUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, g_globalHUDHeight + 50 );
 	g_multipleSphereHUD.SetSize( HUD_WIDTH, g_multipleSphereHUDHeight );
+
+	g_sponzaHUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, g_globalHUDHeight + 50 );
+	g_sponzaHUD.SetSize( HUD_WIDTH, g_sponzaHUDHeight );
 
 	return S_OK;
 }
@@ -472,6 +504,12 @@ bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFu
 		if( *pbNoFurtherProcessing )
 			return false;
 	}
+	else if( g_globalControls.sceneType == SCENE_SPONZA )
+	{
+		*pbNoFurtherProcessing = g_sponzaHUD.MsgProc( hWnd, uMsg, wParam, lParam );
+		if( *pbNoFurtherProcessing )
+			return false;
+	}
 
 	return true;
 }
@@ -485,6 +523,8 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 		g_oneSphereHUD.OnRender( fElapsedTime );
 	else if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
 		g_multipleSphereHUD.OnRender( fElapsedTime );
+	else if( g_globalControls.sceneType == SCENE_SPONZA )
+		g_sponzaHUD.OnRender( fElapsedTime );
 	g_pTxtHelper->Begin();
 	g_pTxtHelper->SetInsertionPos( 2, 0 );
 	g_pTxtHelper->SetForegroundColor( Colors::Yellow );
@@ -518,6 +558,12 @@ const OneSphereSceneControls& GetOneSphereSceneControls()
 const MultipleSphereSceneControls& GetMultipleSphereSceneControls()
 {
 	return g_multipleSphereSceneControls;
+}
+
+
+const SponzaSceneControls& GetSponzaSceneControls()
+{
+	return g_sponzaSceneControls;
 }
 
 

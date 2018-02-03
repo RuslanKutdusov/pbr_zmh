@@ -1,5 +1,13 @@
 #include "Precompiled.h"
 
+using namespace DirectX;
+
+struct InstanceParams
+{
+	XMVECTOR PointLightPos;
+	XMVECTOR PointLightFlux;
+};
+
 
 SponzaRenderer::SponzaRenderer()
 {
@@ -17,6 +25,16 @@ HRESULT SponzaRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	textureMapping[ kTextureMetalness ] = aiTextureType_AMBIENT;
 	V_RETURN( m_model.Load( pd3dDevice, L"sponza", L"sponza.obj", true, textureMapping ) );
 	V_RETURN( ReloadShaders( pd3dDevice ) );
+
+	D3D11_BUFFER_DESC Desc;
+	Desc.Usage = D3D11_USAGE_DYNAMIC;
+	Desc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	Desc.MiscFlags = 0;
+	Desc.ByteWidth = sizeof( InstanceParams );
+	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &m_instanceBuf ) );
+	DXUT_SetDebugName( m_instanceBuf, "InstanceParams" );
+
 	return S_OK;
 }
 
@@ -53,8 +71,24 @@ void SponzaRenderer::RenderDepthPass( ID3D11DeviceContext* pd3dImmediateContext 
 }
 
 
-void SponzaRenderer::RenderLightPass( ID3D11DeviceContext* pd3dImmediateContext )
+void SponzaRenderer::RenderLightPass( ID3D11DeviceContext* pd3dImmediateContext, const XMVECTOR& pointLightFlux, float fTime )
 {
+	D3D11_MAPPED_SUBRESOURCE mappedSubres;
+	pd3dImmediateContext->Map( m_instanceBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
+	InstanceParams* instanceParams = ( InstanceParams* )mappedSubres.pData;
+
+	XMVECTOR initialPos = XMVectorSet( 0.0f, 2.0f, 0.0f, 0.0f );
+	XMVECTOR moveDir = XMVectorSet( 1.0f, 0.0f, 0.0f, 0.0f );
+	instanceParams->PointLightPos = XMVectorAdd( initialPos, XMVectorScale( moveDir, cos( fTime * 1.0f ) * 15.0f ) );
+	instanceParams->PointLightFlux = pointLightFlux;
+
+	memcpy( mappedSubres.pData, instanceParams, sizeof( InstanceParams ) );
+	pd3dImmediateContext->Unmap( m_instanceBuf, 0 );
+
+	// apply
+	pd3dImmediateContext->VSSetConstantBuffers( 1, 1, &m_instanceBuf );
+	pd3dImmediateContext->PSSetConstantBuffers( 1, 1, &m_instanceBuf );
+
 	Render( pd3dImmediateContext, false );
 }
 
@@ -65,6 +99,7 @@ void SponzaRenderer::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_inputLayout );
 	SAFE_RELEASE( m_vs );
 	SAFE_RELEASE( m_ps );
+	SAFE_RELEASE( m_instanceBuf );
 }
 
 

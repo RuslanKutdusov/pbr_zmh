@@ -46,6 +46,13 @@ struct MultipleSphereSceneControls
 };
 
 
+struct SponzaSceneControls
+{
+	float pointLightFlux = 10.0f;
+	DirectX::XMVECTOR pointLightColor = DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
+};
+
+
 void UIInit();
 HRESULT UIOnDeviceCreate( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext );
 HRESULT UIOnResizedSwapChain( ID3D11Device* pd3dDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc );
@@ -59,6 +66,7 @@ CD3DSettingsDlg& GetD3DSettingsDlg();
 const GlobalControls& GetGlobalControls();
 const OneSphereSceneControls& GetOneSphereSceneControls();
 const MultipleSphereSceneControls& GetMultipleSphereSceneControls();
+const SponzaSceneControls& GetSponzaSceneControls();
 
 using UICallback = void(*)();
 void SetOnShaderReloadCallback( UICallback callback );

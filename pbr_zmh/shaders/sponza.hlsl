@@ -1,6 +1,12 @@
 #include "global.h"
 #include "lighting.h"
 
+cbuffer InstanceParams : register( b1 )
+{
+	float3 PointLightPos;
+	float3 PointLightFlux;
+};
+
 Texture2D AlbedoTexture : register( t0 );
 Texture2D NormalTexture : register( t1 );
 Texture2D RoughnessTexture : register( t2 );
@@ -59,9 +65,18 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	PSOutput output = ( PSOutput )0;
 	if( EnableDirectLight )
 	{
+		// Lo = ( Fd + Fs ) * (n,l) * E
 		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, 1.0f, albedo ) * LightIrradiance.rgb;
 		if( EnableShadow )
 			output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
+
+		float3 lightDir = normalize( PointLightPos.xyz - input.worldPos );
+		//         Ф
+		// E = -------------
+		//      4 * pi * r^2
+		float3 irradiance = PointLightFlux.rgb * 1.0f / ( 4.0f * PI * length( PointLightPos.xyz - input.worldPos ) );
+		// Lo = ( Fd + Fs ) * (n,l) * E
+		output.directLight.rgb += CalcDirectLight( normal, lightDir, view, metalness, roughness, 1.0f, albedo ) * irradiance.rgb;
 	}
 	if( EnableIndirectLight ) 
 	{

@@ -282,7 +282,7 @@ void ComputeShadowMatrix()
 }
 
 
-void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
+void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 {
 	SphereRenderer::InstanceParams oneSphereInstance;
 	SphereRenderer::InstanceParams multSphereInstances[ 11 * 11 ];
@@ -389,7 +389,10 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext )
 			g_sphereRenderer.RenderLightPass( sphereInstances, material, numSphereInstances, pd3dImmediateContext );
 		}
 		if( GetGlobalControls().sceneType == SCENE_SPONZA )
-			g_sponzaRenderer.RenderLightPass( pd3dImmediateContext );
+		{
+			XMVECTOR pointLightFlux = XMVectorScale( GetSponzaSceneControls().pointLightColor, GetSponzaSceneControls().pointLightFlux );
+			g_sponzaRenderer.RenderLightPass( pd3dImmediateContext, pointLightFlux, fTime );
+		}
 
 		DXUT_EndPerfEvent();
 	}
@@ -457,7 +460,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	}
 
 	BakeCubeMap( pd3dImmediateContext );
-	RenderScene( pd3dImmediateContext );	
+	RenderScene( pd3dImmediateContext, ( float )fTime );	
 
 	//
 	DXUT_BeginPerfEvent(DXUT_PERFEVENTCOLOR, L"Tonemap");
