@@ -57,3 +57,5 @@ https://www.gdcvault.com/play/1024478/PBR-Diffuse-Lighting-for-GGX
 * Specular BRDF Reference.
 http://graphicrants.blogspot.ru/2013/08/specular-brdf-reference.html
 
+
+Может понадобиться установить Visual Studio 2015 x64 Redist, запустите vc_redist.x64.exe
