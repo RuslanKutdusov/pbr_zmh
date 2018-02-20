@@ -128,7 +128,8 @@ void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT
 			pd3dImmediateContext->Map( m_m_envMapPrefilterCb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
 			Constants consts;
 			consts.FaceIndex = f;
-			consts.TargetRoughness = ( float )i / ( ( float )CUBEMAP_MIPS - 1.0f );
+			consts.TargetRoughness = ( float )i / ( float )CUBEMAP_MIPS;
+			consts.TargetRoughness *= consts.TargetRoughness;
 			memcpy( mappedSubres.pData, &consts, sizeof( Constants ) );
 			pd3dImmediateContext->Unmap( m_m_envMapPrefilterCb, 0 );
 

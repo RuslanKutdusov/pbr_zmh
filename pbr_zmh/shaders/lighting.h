@@ -252,7 +252,7 @@ float3 PrefilterEnvMap( float roughness, float3 R, uint2 random )
 				float solidAngleSample = 1.0 / (NUM_SAMPLES * pdf);
 				float lod = roughness == 0 ? 0 : max( 0.5 * log2(solidAngleSample/solidAngleTexel), 0.0f );
 				
-				accum += EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb;
+				accum += EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb * NoL;
 				weight += NoL;
 			}
 		}
@@ -275,7 +275,6 @@ float2 GenerateBRDFLut( float roughness, float NoV, uint2 random )
 		float2 Xi = Hammersley_v1( i, NUM_SAMPLES, random );
 		float3 H = ImportanceSampleGGX( Xi, roughness, N );
 		float3 L = 2 * dot( V, H ) * H - V;
-		float NoV = abs( dot( N, V ) ) + 1e-5f;
 		float NoL = saturate( dot( N, L ) );
 		float NoH = saturate( dot( N, H ) );
 		float VoH = saturate( dot( V, H ) );
@@ -299,17 +298,20 @@ float3 ApproximatedIndirectLight( float3 N, float3 V, float metalness, float per
 
 	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
 	
-	float NoV = abs( dot( N, V ) ) + 1e-5f;
+	float NoV = abs( dot( N, V ) );
 	
 	float3 R = 2 * dot( V, N ) * N - V;
 	float width;
 	float height;
-	uint numberOfLevels;
+	float numberOfLevels;
 	PrefilteredEnvMap.GetDimensions( 0, width, height, numberOfLevels );
-	float mip = roughness * ( numberOfLevels - 1 );
-	float3 L = PrefilteredEnvMap.SampleLevel( LinearWrapSampler, R, mip ).rgb;
+	float mip = perceptualRoughness * numberOfLevels; // is the same as sqrt( roughness ) * numberOfLevels
 	
-	float2 lut = BRDFLut.Sample( LinearWrapSampler, float2( roughness, saturate( NoV ) ) ).xy;
+	float3 L = PrefilteredEnvMap.SampleLevel( LinearWrapSampler, R, mip ).rgb;
+	float2 lut = BRDFLut.Sample( LinearClampSampler, float2( roughness, NoV ) ).xy;
+	
+	//L = PrefilterEnvMap( roughness, R, random );
+	//lut = GenerateBRDFLut( roughness, NoV, random );
 	
 	return L * ( F0 * lut.x + lut.y );
 }

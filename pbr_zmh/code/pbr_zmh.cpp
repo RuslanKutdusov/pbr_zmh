@@ -6,6 +6,7 @@
 #define PREFILTERED_ENV_MAP 125
 #define SHADOW_MAP 126
 #define ENVIRONMENT_MAP 127
+#define LINEAR_CLAMP_SAMPLER_STATE 13
 #define CMP_LINEAR_SAMPLER_STATE 14
 #define LINEAR_WRAP_SAMPLER_STATE 15
 
@@ -32,7 +33,8 @@ struct GlobalParams
 	UINT EnableShadow;
 	UINT EnableDiffuseLight;
 	UINT EnableSpecularLight;
-	UINT padding[ 2 ];
+	UINT ScreenWidth;
+	UINT ScreenHeight;
 };
 
 
@@ -51,6 +53,7 @@ ID3D11BlendState*					g_singleRtBlendState = nullptr;
 ID3D11BlendState*					g_doubleRtBlendState = nullptr;
 ID3D11SamplerState*					g_cmpLinearSamplerState = nullptr;
 ID3D11SamplerState*					g_linearWrapSamplerState = nullptr;
+ID3D11SamplerState*					g_linearClampSamplerState = nullptr;
 SphereRenderer						g_sphereRenderer;
 SkyRenderer							g_skyRenderer;
 SponzaRenderer						g_sponzaRenderer;
@@ -168,6 +171,11 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	samplerDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &g_linearWrapSamplerState ) );
 
+	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+	samplerDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+	V_RETURN( pd3dDevice->CreateSamplerState( &samplerDesc, &g_linearClampSamplerState ) );
+
 	samplerDesc.Filter = D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
 	samplerDesc.MaxAnisotropy = 0;
 	samplerDesc.ComparisonFunc = D3D11_COMPARISON_LESS;
@@ -220,6 +228,9 @@ HRESULT CALLBACK OnD3D11ResizedSwapChain( ID3D11Device* pd3dDevice, IDXGISwapCha
 	g_modelViewerCamera.SetWindow( pBackBufferSurfaceDesc->Width, pBackBufferSurfaceDesc->Height );
 	g_modelViewerCamera.SetButtonMasks( 0, MOUSE_WHEEL, MOUSE_RIGHT_BUTTON | MOUSE_LEFT_BUTTON );
 	g_firstPersonCamera.SetProjParams( 53.4f * ( XM_PI / 180.0f ), fAspectRatio, 0.1f, 3000.0f );
+
+	g_cachedGlobalParams.ScreenWidth = pBackBufferSurfaceDesc->Width;
+	g_cachedGlobalParams.ScreenHeight = pBackBufferSurfaceDesc->Height;
 
 	g_resetSampling = true;
 
@@ -462,6 +473,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->RSSetState( g_rasterizerState );
 	pd3dImmediateContext->OMSetDepthStencilState( g_lightPassDepthStencilState, 0 );
 	pd3dImmediateContext->OMSetBlendState( g_singleRtBlendState, nullptr, ~0u );
+	pd3dImmediateContext->PSSetSamplers( LINEAR_CLAMP_SAMPLER_STATE, 1, &g_linearClampSamplerState );
+	pd3dImmediateContext->CSSetSamplers( LINEAR_CLAMP_SAMPLER_STATE, 1, &g_linearClampSamplerState );
 	pd3dImmediateContext->PSSetSamplers( CMP_LINEAR_SAMPLER_STATE, 1, &g_cmpLinearSamplerState );
 	pd3dImmediateContext->PSSetSamplers( LINEAR_WRAP_SAMPLER_STATE, 1, &g_linearWrapSamplerState );
 	pd3dImmediateContext->CSSetSamplers( LINEAR_WRAP_SAMPLER_STATE, 1, &g_linearWrapSamplerState );
@@ -540,6 +553,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	SAFE_RELEASE( g_singleRtBlendState );
 	SAFE_RELEASE( g_doubleRtBlendState );
 	SAFE_RELEASE( g_linearWrapSamplerState );
+	SAFE_RELEASE( g_linearClampSamplerState );
 	SAFE_RELEASE( g_cmpLinearSamplerState );
 	g_directLightRenderTarget.Release();
 	g_indirectLightRenderTarget.Release();

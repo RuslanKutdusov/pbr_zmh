@@ -17,7 +17,8 @@ cbuffer GlobalParams : register( b0 )
 	bool EnableShadow;
 	bool EnableDiffuseLight;
 	bool EnableSpecularLight;
-	bool2 padding;
+	uint ScreenWidth;
+	uint ScreenHeight;
 };
 
 
@@ -34,5 +35,6 @@ Texture2D BRDFLut : register( t124 );
 TextureCube PrefilteredEnvMap: register( t125 );
 Texture2D ShadowMap : register( t126 );
 TextureCube EnvironmentMap : register( t127 );
+SamplerState LinearClampSampler : register( s13 );
 SamplerComparisonState CmpLinearSampler : register( s14 );
 SamplerState LinearWrapSampler : register( s15 );
