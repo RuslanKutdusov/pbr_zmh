@@ -291,6 +291,15 @@ float2 GenerateBRDFLut( float roughness, float NoV, uint2 random )
 }
 
 
+float3 GetSpecularDominantDir( float3 N, float3 R, float roughness )
+{
+	float smoothness = saturate( 1 - roughness );
+	float lerpFactor = smoothness * ( sqrt( smoothness ) + roughness );
+	// The result is not normalized as we fetch in a cubemap
+	return lerp( N, R, lerpFactor );
+}
+
+
 float3 ApproximatedIndirectLight( float3 N, float3 V, float metalness, float perceptualRoughness, float reflectance, float3 albedo, uint2 random )
 {
 	float3 cDiff, F0;
@@ -301,9 +310,8 @@ float3 ApproximatedIndirectLight( float3 N, float3 V, float metalness, float per
 	float NoV = abs( dot( N, V ) );
 	
 	float3 R = 2 * dot( V, N ) * N - V;
-	float width;
-	float height;
-	float numberOfLevels;
+	R = GetSpecularDominantDir( N, R, roughness );
+	float width, height, numberOfLevels;
 	PrefilteredEnvMap.GetDimensions( 0, width, height, numberOfLevels );
 	float mip = perceptualRoughness * numberOfLevels; // is the same as sqrt( roughness ) * numberOfLevels
 	
