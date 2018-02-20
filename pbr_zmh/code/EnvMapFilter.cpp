@@ -9,8 +9,8 @@ const UINT THREAD_GROUP_SIZE = 32;
 
 struct Constants
 {
-	UINT FaceIndex;
-	float TargetRoughness;
+	UINT MipIndex;
+	UINT MipsNumber;
 	UINT padding[ 2 ];
 };
 
@@ -39,8 +39,8 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	Desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	Desc.MiscFlags = 0;
 	Desc.ByteWidth = sizeof( Constants );
-	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &m_m_envMapPrefilterCb ) );
-	DXUT_SetDebugName( m_m_envMapPrefilterCb, "Constants" );
+	V_RETURN( pd3dDevice->CreateBuffer( &Desc, nullptr, &m_envMapPrefilterCb ) );
+	DXUT_SetDebugName( m_envMapPrefilterCb, "Constants" );
 
 	D3D11_TEXTURE2D_DESC texDesc;
 	ZeroMemory( &texDesc, sizeof( D3D11_TEXTURE2D_DESC ) );
@@ -110,7 +110,7 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT envMapSlot, ID3D11ShaderResourceView* envmap )
 {
 	pd3dImmediateContext->CSSetShader( m_envMapPrefilter, nullptr, 0 );
-	pd3dImmediateContext->CSSetConstantBuffers( 1, 1, &m_m_envMapPrefilterCb );
+	pd3dImmediateContext->CSSetConstantBuffers( 1, 1, &m_envMapPrefilterCb );
 	pd3dImmediateContext->CSSetShaderResources( envMapSlot, 1, &envmap );
 
 	for( UINT i = 0; i < CUBEMAP_MIPS; i++ )
@@ -122,19 +122,15 @@ void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT
 		pd3dImmediateContext->ClearUnorderedAccessViewFloat( m_prefilteredEnvMapUAV[ i ], clearValues );
 		pd3dImmediateContext->CSSetUnorderedAccessViews( 0, 1, &m_prefilteredEnvMapUAV[ i ], nullptr );
 
-		for( UINT f = 0; f < 6; f++ )
-		{
-			D3D11_MAPPED_SUBRESOURCE mappedSubres;
-			pd3dImmediateContext->Map( m_m_envMapPrefilterCb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
-			Constants consts;
-			consts.FaceIndex = f;
-			consts.TargetRoughness = ( float )i / ( float )CUBEMAP_MIPS;
-			consts.TargetRoughness *= consts.TargetRoughness;
-			memcpy( mappedSubres.pData, &consts, sizeof( Constants ) );
-			pd3dImmediateContext->Unmap( m_m_envMapPrefilterCb, 0 );
+		D3D11_MAPPED_SUBRESOURCE mappedSubres;
+		pd3dImmediateContext->Map( m_envMapPrefilterCb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
+		Constants consts;
+		consts.MipIndex = i;
+		consts.MipsNumber = CUBEMAP_MIPS;
+		memcpy( mappedSubres.pData, &consts, sizeof( Constants ) );
+		pd3dImmediateContext->Unmap( m_envMapPrefilterCb, 0 );
 
-			pd3dImmediateContext->Dispatch( threadGroupCount, threadGroupCount, 1 );
-		}
+		pd3dImmediateContext->Dispatch( threadGroupCount, threadGroupCount, 6 );
 	}
 
 	pd3dImmediateContext->CSSetShader( m_brdfLutGen, nullptr, 0 );
@@ -153,7 +149,7 @@ void EnvMapFilter::OnD3D11DestroyDevice()
 {
 	SAFE_RELEASE( m_envMapPrefilter );
 	SAFE_RELEASE( m_brdfLutGen );
-	SAFE_RELEASE( m_m_envMapPrefilterCb );
+	SAFE_RELEASE( m_envMapPrefilterCb );
 
 	if( m_prefilteredEnvMapUAV )
 	{
