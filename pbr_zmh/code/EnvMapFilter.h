@@ -13,8 +13,9 @@ public:
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 
 private:
-	ID3D11ComputeShader* m_cs = nullptr;
-	ID3D11Buffer* m_cb = nullptr;
+	ID3D11ComputeShader* m_envMapPrefilter = nullptr;
+	ID3D11ComputeShader* m_brdfLutGen = nullptr;
+	ID3D11Buffer* m_m_envMapPrefilterCb = nullptr;
 
 	ID3D11Texture2D* m_prefilteredEnvMap = nullptr;
 	ID3D11UnorderedAccessView** m_prefilteredEnvMapUAV = nullptr;
