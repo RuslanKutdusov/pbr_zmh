@@ -53,6 +53,7 @@ SphereRenderer						g_sphereRenderer;
 SkyRenderer							g_skyRenderer;
 SponzaRenderer						g_sponzaRenderer;
 PostProcess							g_postProcess;
+EnvMapFilter						g_envMapFilter;
 
 // lighting render targets 
 RenderTarget						g_directLightRenderTarget;
@@ -191,6 +192,8 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	g_material.Load( pd3dDevice, L"materials\\default" );
 
 	g_shadowMap.Init( pd3dDevice, SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, "ShadowMap" );
+
+	g_envMapFilter.OnD3D11CreateDevice( pd3dDevice );
 
     return S_OK;
 }
@@ -444,8 +447,10 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	pd3dImmediateContext->OMSetBlendState( g_singleRtBlendState, nullptr, ~0u );
 	pd3dImmediateContext->PSSetSamplers( CMP_LINEAR_SAMPLER_STATE, 1, &g_cmpLinearSamplerState );
 	pd3dImmediateContext->PSSetSamplers( LINEAR_WRAP_SAMPLER_STATE, 1, &g_linearWrapSamplerState );
+	pd3dImmediateContext->CSSetSamplers( LINEAR_WRAP_SAMPLER_STATE, 1, &g_linearWrapSamplerState );
 	pd3dImmediateContext->VSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
 	pd3dImmediateContext->PSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
+	pd3dImmediateContext->CSSetConstantBuffers( GLOBAL_PARAMS_CB, 1, &g_globalParamsBuf );
 
 	// update global params
 	{
@@ -470,6 +475,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	}
 
 	BakeCubeMap( pd3dImmediateContext );
+	g_envMapFilter.FilterEnvMap( pd3dImmediateContext, ENVIRONMENT_MAP, g_skyRenderer.GetCubeMapSRV() );
 	RenderScene( pd3dImmediateContext, ( float )fTime );	
 
 	//
@@ -527,6 +533,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	g_skyRenderer.OnD3D11DestroyDevice();
 	g_sponzaRenderer.OnD3D11DestroyDevice();
 	g_postProcess.OnD3D11DestroyDevice();
+	g_envMapFilter.OnD3D11DestroyDevice();
 }
 
 
@@ -582,6 +589,7 @@ void OnShaderReloadCallback()
 	g_sphereRenderer.ReloadShaders( DXUTGetD3D11Device() );
 	g_sponzaRenderer.ReloadShaders( DXUTGetD3D11Device() );
 	g_postProcess.ReloadShaders( DXUTGetD3D11Device() );
+	g_envMapFilter.ReloadShaders( DXUTGetD3D11Device() );
 	g_resetSampling = true;
 }
 

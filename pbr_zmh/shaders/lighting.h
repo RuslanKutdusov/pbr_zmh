@@ -17,7 +17,7 @@ float PerceptualRoughnessToRoughness( float perceptualRoughness ) {
 // Ref: http://jcgt.org/published/0003/02/03/paper.pdf
 // Vis = G / ( 4 * NoL * NoV )
 float Vis_SmithJointGGX( float NoL, float NoV, float roughness ) {
-	// Approximised version
+	// Approximated version
 	float a = roughness;
 	float lambdaV = NoL * ( NoV * ( 1.0f - a ) + a );
 	float lambdaL = NoV * ( NoL * ( 1.0f - a ) + a );
@@ -179,8 +179,8 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 				float pdf = D_GGX( NoH, roughness ) * NoH / (4*VoH);
 				
 				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
-				float solidAngleSample = 1.0 / (SamplesInStep * pdf);
-				float lod = roughness == 0 ? 0 : 0.5 * log2(solidAngleSample/solidAngleTexel);
+				float solidAngleSample = 1.0 / (TotalSamples * pdf);
+				float lod = roughness == 0 ? 0 : max( 0.5 * log2(solidAngleSample/solidAngleTexel), 0.0f );
 				float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb;
 
 				float Vis = Vis_SmithJointGGX( NoL, NoV, roughness );
@@ -216,6 +216,102 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 	if( EnableSpecularLight )
 		sum += SpecularLighting;
 	return float4( sum, SamplesInStep );
+}
+
+
+static const uint NUM_SAMPLES = 128;
+static const uint NUM_MIPS = 9;
+
+
+float3 PrefilterEnvMap( float roughness, float3 R, uint2 random )
+{
+	float3 N = R;
+	float3 V = R;
+	
+	uint cubeWidth, cubeHeight;
+    EnvironmentMap.GetDimensions(cubeWidth, cubeHeight);
+	
+	float weight = 0.0f;
+	float3 accum = 0.0f;
+	for( uint i = 0; i < NUM_SAMPLES; i++ )
+	{
+		float2 Xi = Hammersley_v1( i, NUM_SAMPLES, random );
+		// specular
+		{
+			float3 H = ImportanceSampleGGX( Xi, roughness, N );
+			float3 L = 2 * dot( V, H ) * H - V;
+			float NoV = abs( dot( N, V ) ) + 1e-5f;
+			float NoL = saturate( dot( N, L ) );
+			float NoH = saturate( dot( N, H ) );
+			float VoH = saturate( dot( V, H ) );
+			if( NoL > 0 )
+			{
+				float pdf = D_GGX( NoH, roughness ) * NoH / (4*VoH);
+				
+				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
+				float solidAngleSample = 1.0 / (NUM_SAMPLES * pdf);
+				float lod = roughness == 0 ? 0 : max( 0.5 * log2(solidAngleSample/solidAngleTexel), 0.0f );
+				
+				accum += EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb;
+				weight += NoL;
+			}
+		}
+	}
+	
+	//weight = NUM_SAMPLES;
+	return accum / weight;
+}
+
+
+float2 GenerateBRDFLut( float roughness, float NoV, uint2 random )
+{
+	// Normal always points along z-axis for the 2D lookup 
+	const float3 N = float3( 0.0, 0.0, 1.0 );
+	float3 V = float3( sqrt( 1.0 - NoV * NoV ), 0.0, NoV );
+	
+	float2 lut = float2( 0.0, 0.0 );
+	for( uint i = 0u; i < NUM_SAMPLES; i++ ) 
+	{
+		float2 Xi = Hammersley_v1( i, NUM_SAMPLES, random );
+		float3 H = ImportanceSampleGGX( Xi, roughness, N );
+		float3 L = 2 * dot( V, H ) * H - V;
+		float NoV = abs( dot( N, V ) ) + 1e-5f;
+		float NoL = saturate( dot( N, L ) );
+		float NoH = saturate( dot( N, H ) );
+		float VoH = saturate( dot( V, H ) );
+		if( NoL > 0 )
+		{
+			float Vis = Vis_SmithJointGGX( NoL, NoV, roughness ) * NoL * (4 * VoH / NoH);
+			float Fc = pow( 1.0 - VoH, 5.0 );
+			
+			lut.x += Vis * ( 1.0 - Fc );
+			lut.y += Vis * Fc;
+		}
+	}
+	return lut / float(NUM_SAMPLES);
+}
+
+
+float3 ApproximatedIndirectLight( float3 N, float3 V, float metalness, float perceptualRoughness, float reflectance, float3 albedo, uint2 random )
+{
+	float3 cDiff, F0;
+	CalcCdiffAndF0( albedo, metalness, reflectance, cDiff, F0 );
+
+	float roughness = PerceptualRoughnessToRoughness( perceptualRoughness );
+	
+	float NoV = abs( dot( N, V ) ) + 1e-5f;
+	
+	float3 R = 2 * dot( V, N ) * N - V;
+	float width;
+	float height;
+	uint numberOfLevels;
+	PrefilteredEnvMap.GetDimensions( 0, width, height, numberOfLevels );
+	float mip = roughness * ( numberOfLevels - 1 );
+	float3 L = PrefilteredEnvMap.SampleLevel( LinearWrapSampler, R, mip ).rgb;
+	
+	float2 lut = BRDFLut.Sample( LinearWrapSampler, float2( roughness, saturate( NoV ) ) ).xy;
+	
+	return L * ( F0 * lut.x + lut.y );
 }
 
 

@@ -36,6 +36,9 @@ HRESULT CompileShader( LPCWSTR path, const D3D_SHADER_MACRO* pDefines, LPCSTR pE
 		case SHADER_PIXEL:
 			target = "ps_5_0";
 			break;
+		case SHADER_COMPUTE:
+			target = "cs_5_0";
+			break;
 		default:
 			break;
 	}

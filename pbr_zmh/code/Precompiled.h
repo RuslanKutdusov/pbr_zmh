@@ -14,6 +14,7 @@
 
 #include "SphereRenderer.h"
 #include "SkyRenderer.h"
+#include "EnvMapFilter.h"
 #include "SponzaRenderer.h"
 #include "PostProcess.h"
 #include "UI.h"

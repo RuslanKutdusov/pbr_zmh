@@ -214,6 +214,7 @@
     <ClCompile Include="code\SphereRenderer.cpp" />
     <ClCompile Include="code\SponzaRenderer.cpp" />
     <ClCompile Include="code\UI.cpp" />
+    <ClCompile Include="code\EnvMapFilter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DXUT\Core\DXUT_2015.vcxproj">
@@ -235,6 +236,7 @@
     <ClInclude Include="code\SphereRenderer.h" />
     <ClInclude Include="code\SponzaRenderer.h" />
     <ClInclude Include="code\UI.h" />
+    <ClInclude Include="code\EnvMapFilter.h" />
     <ResourceCompile Include="code\pbr_zmh.rc" />
   </ItemGroup>
   <ItemGroup>
