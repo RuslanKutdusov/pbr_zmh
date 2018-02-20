@@ -2,6 +2,8 @@
 #include "resource.h"
 
 #define GLOBAL_PARAMS_CB 0
+#define BRDF_LUT 124
+#define PREFILTERED_ENV_MAP 125
 #define SHADOW_MAP 126
 #define ENVIRONMENT_MAP 127
 #define CMP_LINEAR_SAMPLER_STATE 14
@@ -259,6 +261,17 @@ void BakeCubeMap( ID3D11DeviceContext* pd3dImmediateContext )
 }
 
 
+void PrefilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext )
+{
+	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Filter env map" );
+	ID3D11ShaderResourceView* nullSrv = nullptr;
+	pd3dImmediateContext->PSSetShaderResources( PREFILTERED_ENV_MAP, 1, &nullSrv );
+	pd3dImmediateContext->PSSetShaderResources( BRDF_LUT, 1, &nullSrv );
+	g_envMapFilter.FilterEnvMap( pd3dImmediateContext, ENVIRONMENT_MAP, g_skyRenderer.GetCubeMapSRV() );
+	DXUT_EndPerfEvent();
+}
+
+
 void ComputeShadowMatrix()
 {
 	float lightDirVert = ToRad( ( float )GetGlobalControls().lightDirVert );
@@ -387,8 +400,12 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 		pd3dImmediateContext->OMSetDepthStencilState( g_lightPassDepthStencilState, 0 );
 
 		ID3D11ShaderResourceView* environmentMap = g_skyRenderer.GetCubeMapSRV();
+		ID3D11ShaderResourceView* prefilteredEnvMap = g_envMapFilter.GetPrefilteredEnvMap();
+		ID3D11ShaderResourceView* brdfLut = g_envMapFilter.GetBRDFLut();
 		pd3dImmediateContext->PSSetShaderResources( SHADOW_MAP, 1, &g_shadowMap.srv );
 		pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
+		pd3dImmediateContext->PSSetShaderResources( PREFILTERED_ENV_MAP, 1, &prefilteredEnvMap );
+		pd3dImmediateContext->PSSetShaderResources( BRDF_LUT, 1, &brdfLut );
 		pd3dImmediateContext->OMSetBlendState( g_doubleRtBlendState, nullptr, ~0u );
 
 		if( GetGlobalControls().drawSky )
@@ -475,7 +492,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	}
 
 	BakeCubeMap( pd3dImmediateContext );
-	g_envMapFilter.FilterEnvMap( pd3dImmediateContext, ENVIRONMENT_MAP, g_skyRenderer.GetCubeMapSRV() );
+	PrefilterEnvMap( pd3dImmediateContext );
 	RenderScene( pd3dImmediateContext, ( float )fTime );	
 
 	//

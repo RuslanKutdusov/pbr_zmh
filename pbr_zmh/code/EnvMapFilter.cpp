@@ -63,7 +63,7 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 		ZeroMemory( &uavDesc, sizeof( D3D11_UNORDERED_ACCESS_VIEW_DESC ) );
-		uavDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		uavDesc.Format = texDesc.Format;
 		uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
 		uavDesc.Texture2DArray.ArraySize = 6;
 		uavDesc.Texture2DArray.FirstArraySlice = 0;
@@ -71,6 +71,14 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 
 		V_RETURN( pd3dDevice->CreateUnorderedAccessView( m_prefilteredEnvMap, &uavDesc, &m_prefilteredEnvMapUAV[ i ] ) );
 	}
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	ZeroMemory( &srvDesc, sizeof( D3D11_SHADER_RESOURCE_VIEW_DESC ) );
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.TextureCube.MipLevels = texDesc.MipLevels;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	V_RETURN( pd3dDevice->CreateShaderResourceView( m_prefilteredEnvMap, &srvDesc, &m_prefilteredEnvMapSRV ) );
 
 	// BRDF Lut
 	texDesc.Format = DXGI_FORMAT_R16G16_FLOAT;
@@ -84,10 +92,16 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 
 	D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 	ZeroMemory( &uavDesc, sizeof( D3D11_UNORDERED_ACCESS_VIEW_DESC ) );
-	uavDesc.Format = DXGI_FORMAT_R16G16_FLOAT;
+	uavDesc.Format = texDesc.Format;
 	uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
 	uavDesc.Texture2D.MipSlice = 0;
 	V_RETURN( pd3dDevice->CreateUnorderedAccessView( m_brdfLut, &uavDesc, &m_brdfLutUav ) );
+
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
+	srvDesc.Texture2D.MostDetailedMip = 0;
+	V_RETURN( pd3dDevice->CreateShaderResourceView( m_brdfLut, &srvDesc, &m_brdfLutSRV ) );
 
 	return S_OK;
 }
@@ -95,7 +109,6 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 
 void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT envMapSlot, ID3D11ShaderResourceView* envmap )
 {
-	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Filter env map" );
 	pd3dImmediateContext->CSSetShader( m_envMapPrefilter, nullptr, 0 );
 	pd3dImmediateContext->CSSetConstantBuffers( 1, 1, &m_m_envMapPrefilterCb );
 	pd3dImmediateContext->CSSetShaderResources( envMapSlot, 1, &envmap );
@@ -132,8 +145,6 @@ void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT
 
 	ID3D11UnorderedAccessView* nullUav = nullptr;
 	pd3dImmediateContext->CSSetUnorderedAccessViews( 0, 1, &nullUav, nullptr );
-
-	DXUT_EndPerfEvent();
 }
 
 
@@ -150,12 +161,25 @@ void EnvMapFilter::OnD3D11DestroyDevice()
 
 		delete[] m_prefilteredEnvMapUAV;
 	}
+	SAFE_RELEASE( m_prefilteredEnvMapSRV );
 	SAFE_RELEASE( m_prefilteredEnvMap );
 
 	SAFE_RELEASE( m_brdfLutUav );
+	SAFE_RELEASE( m_brdfLutSRV );
 	SAFE_RELEASE( m_brdfLut );
 }
 
+
+ID3D11ShaderResourceView* EnvMapFilter::GetPrefilteredEnvMap()
+{
+	return m_prefilteredEnvMapSRV;
+}
+
+
+ID3D11ShaderResourceView* EnvMapFilter::GetBRDFLut()
+{
+	return m_brdfLutSRV;
+}
 
 
 HRESULT	EnvMapFilter::ReloadShaders( ID3D11Device* pd3dDevice )

@@ -10,6 +10,9 @@ public:
 	void	FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT envMapSlot, ID3D11ShaderResourceView* envmap );
 	void    OnD3D11DestroyDevice();
 
+	ID3D11ShaderResourceView* GetPrefilteredEnvMap();
+	ID3D11ShaderResourceView* GetBRDFLut();
+
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 
 private:
@@ -19,6 +22,9 @@ private:
 
 	ID3D11Texture2D* m_prefilteredEnvMap = nullptr;
 	ID3D11UnorderedAccessView** m_prefilteredEnvMapUAV = nullptr;
+	ID3D11ShaderResourceView* m_prefilteredEnvMapSRV = nullptr;
+
 	ID3D11Texture2D* m_brdfLut = nullptr;
 	ID3D11UnorderedAccessView* m_brdfLutUav = nullptr;
+	ID3D11ShaderResourceView* m_brdfLutSRV = nullptr;
 };
