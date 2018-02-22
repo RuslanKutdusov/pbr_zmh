@@ -63,6 +63,35 @@ HRESULT SkyRenderer::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 		V_RETURN( pd3dDevice->CreateShaderResourceView( m_cubeMapTexture, &srvDesc, &m_cubeMapSRV ) );
 	}
 
+	// dummy texture
+	{
+		D3D11_TEXTURE2D_DESC texDesc;
+		ZeroMemory( &texDesc, sizeof( D3D11_TEXTURE2D_DESC ) );
+		texDesc.ArraySize = 6;
+		texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		texDesc.Usage = D3D11_USAGE_DEFAULT;
+		texDesc.Format = DXGI_FORMAT_R8_UNORM;
+		texDesc.Width = 1;
+		texDesc.Height = 1;
+		texDesc.MipLevels = 1;
+		texDesc.SampleDesc.Count = 1;
+		texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+		V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &m_dummyTexture ) );
+		DXUT_SetDebugName( m_dummyTexture, "DummyTexture" );
+
+		D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+		srvDesc.Format = texDesc.Format;
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+		srvDesc.TextureCube.MipLevels = 1;
+		srvDesc.TextureCube.MostDetailedMip = 0;
+		V_RETURN( pd3dDevice->CreateShaderResourceView( m_dummyTexture, &srvDesc, &m_dummyCubeSRV ) );
+
+		srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Texture2D.MipLevels = 1;
+		srvDesc.Texture2D.MostDetailedMip = 0;
+		V_RETURN( pd3dDevice->CreateShaderResourceView( m_dummyTexture, &srvDesc, &m_dummy2DSRV ) );
+	}
+
 	return S_OK;
 }
 
@@ -73,7 +102,8 @@ void SkyRenderer::ApplyResources( ID3D11DeviceContext* pd3dImmediateContext )
 
 	pd3dImmediateContext->VSSetShader( m_vs, nullptr, 0 );
 	pd3dImmediateContext->GSSetShader( m_gs, nullptr, 0 );
-	pd3dImmediateContext->PSSetShaderResources( 0, 1, &m_skyTextureSRV );
+	pd3dImmediateContext->PSSetShaderResources( 0, 1, m_isSkyTextureCube ? &m_skyTextureSRV : &m_dummyCubeSRV );
+	pd3dImmediateContext->PSSetShaderResources( 1, 1, m_isSkyTextureCube ? &m_dummy2DSRV : &m_skyTextureSRV );
 	pd3dImmediateContext->VSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->GSSetConstantBuffers( 1, 1, &m_instanceBuf );
 	pd3dImmediateContext->PSSetConstantBuffers( 1, 1, &m_instanceBuf );
@@ -165,6 +195,7 @@ void SkyRenderer::Draw( ID3D11DeviceContext* pd3dImmediateContext, UINT numInsta
 {
 	D3D11_MAPPED_SUBRESOURCE mappedSubres;
 	pd3dImmediateContext->Map( m_instanceBuf, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
+	params.UseCubeTexture = m_isSkyTextureCube;
 	memcpy( mappedSubres.pData, &params, sizeof( InstanceParams ) );
 	pd3dImmediateContext->Unmap( m_instanceBuf, 0 );
 
@@ -189,6 +220,9 @@ void SkyRenderer::OnD3D11DestroyDevice()
 	SAFE_RELEASE( m_cubeMapTexture );
 	SAFE_RELEASE( m_cubeMapRTV );
 	SAFE_RELEASE( m_cubeMapSRV );
+	SAFE_RELEASE( m_dummy2DSRV );
+	SAFE_RELEASE( m_dummyCubeSRV );
+	SAFE_RELEASE( m_dummyTexture );
 	m_sphereModel.Release();
 }
 
@@ -250,6 +284,10 @@ HRESULT SkyRenderer::LoadSkyTexture( ID3D11Device* pd3dDevice, const wchar_t* fi
 	HRESULT hr;
 	SAFE_RELEASE( m_skyTextureSRV );
 	V_RETURN( DXUTCreateShaderResourceViewFromFile( pd3dDevice, filename, &m_skyTextureSRV ) );
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+	m_skyTextureSRV->GetDesc( &srvDesc );
+	m_isSkyTextureCube = srvDesc.ViewDimension == D3D11_SRV_DIMENSION_TEXTURECUBE;
 
 	return S_OK;
 }

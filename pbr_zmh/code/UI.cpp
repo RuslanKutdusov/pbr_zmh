@@ -58,6 +58,9 @@ namespace
 		L"HDRs\\rnl_cross.dds",
 		L"HDRs\\stpeters_cross.dds",
 		L"HDRs\\uffizi_cross.dds",
+		L"HDRs\\ennis.dds",
+		L"HDRs\\grace-new.dds",
+		L"HDRs\\pisa.dds",
 	};
 
 	const wchar_t* g_materials[] = {

@@ -4,6 +4,7 @@ cbuffer InstanceParams : register( b1 )
 {
 	float4x4 BakeViewProj[ 6 ];
 	bool Bake;
+	bool UseCubeTexture;
 };
 
 struct VSOutput
@@ -23,7 +24,8 @@ struct GSOutput
 };
 
 
-TextureCube Texture : register( t0 );
+TextureCube CubeTexture : register( t0 );
+Texture2D Texture : register( t1 );
 
 
 VSOutput vs_main( SdkMeshVertex input, uint id : SV_InstanceID )
@@ -36,7 +38,7 @@ VSOutput vs_main( SdkMeshVertex input, uint id : SV_InstanceID )
 	else
 		output.pos = mul( float4( input.pos * scale + ViewPos, 1.0f ), ViewProjMatrix );
 
-	output.uv = input.tex;
+	output.uv = float2( input.tex.x, 1.0 - input.tex.y );
 	output.normal = input.normal;
 	output.id = id;
 
@@ -63,5 +65,9 @@ void gs_main( triangle VSOutput input[3], inout TriangleStream< GSOutput > TriSt
 
 float4 ps_main( GSOutput input ) : SV_Target
 {
-	return Texture.Sample( LinearWrapSampler, input.normal ) * IndirectLightIntensity;
+	if( UseCubeTexture )
+		return CubeTexture.Sample( LinearWrapSampler, input.normal ) * IndirectLightIntensity;
+	else
+		return Texture.Sample( LinearWrapSampler, input.uv ) * IndirectLightIntensity;
+	return IndirectLightIntensity;
 }

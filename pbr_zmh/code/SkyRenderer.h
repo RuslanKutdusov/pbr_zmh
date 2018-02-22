@@ -23,17 +23,23 @@ public:
 	ID3D11GeometryShader* m_gs = nullptr;
 	ID3D11PixelShader* m_ps = nullptr;
 	ID3D11ShaderResourceView* m_skyTextureSRV = nullptr;
+	bool m_isSkyTextureCube;
 	ID3D11Buffer* m_instanceBuf = nullptr;
 	Model m_sphereModel;
 	ID3D11Texture2D* m_cubeMapTexture;
 	ID3D11RenderTargetView* m_cubeMapRTV;
 	ID3D11ShaderResourceView* m_cubeMapSRV;
 
+	ID3D11Texture2D* m_dummyTexture;
+	ID3D11ShaderResourceView* m_dummyCubeSRV;
+	ID3D11ShaderResourceView* m_dummy2DSRV;
+
 	struct InstanceParams
 	{
 		DirectX::XMMATRIX BakeViewProj[ 6 ];
 		UINT Bake;
-		UINT padding[ 3 ];
+		UINT UseCubeTexture;
+		UINT padding[ 2 ];
 	};
 	void Draw( ID3D11DeviceContext* pd3dImmediateContext, UINT numInstances, InstanceParams& params );
 	void ApplyResources( ID3D11DeviceContext* pd3dImmediateContext );
