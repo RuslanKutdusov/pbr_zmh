@@ -3,7 +3,7 @@
 
 const UINT SPEC_CUBEMAP_RESOLUTION = 256;
 const UINT SPEC_CUBEMAP_MIPS = 9;
-const UINT DIFF_CUBEMAP_RESOLUTION = 256;
+const UINT DIFF_CUBEMAP_RESOLUTION = 128;
 const UINT DIFF_CUBEMAP_MIPS = 1;
 const UINT BRDF_LUT_SIZE = 256;
 const UINT THREAD_GROUP_SIZE = 32;
@@ -141,8 +141,6 @@ void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT
 
 	for( UINT i = 0; i < SPEC_CUBEMAP_MIPS; i++ )
 	{
-		float clearValues[ 4 ] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		pd3dImmediateContext->ClearUnorderedAccessViewFloat( m_prefilteredSpecEnvMapUAV[ i ], clearValues );
 		pd3dImmediateContext->CSSetUnorderedAccessViews( 0, 1, &m_prefilteredSpecEnvMapUAV[ i ], nullptr );
 
 		D3D11_MAPPED_SUBRESOURCE mappedSubres;
@@ -180,6 +178,7 @@ void EnvMapFilter::OnD3D11DestroyDevice()
 {
 	SAFE_RELEASE( m_envMapSpecPrefilter );
 	SAFE_RELEASE( m_brdfLutGen );
+	SAFE_RELEASE( m_envMapDiffPrefilter );
 	SAFE_RELEASE( m_envMapPrefilterCb );
 
 	if( m_prefilteredSpecEnvMapUAV )
