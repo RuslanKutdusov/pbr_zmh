@@ -48,6 +48,6 @@ void cs_main( uint2 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID )
 	uint2 random = RandVector_v2( id.xy );
 	float roughness = ( float )MipIndex / ( float )MipsNumber;
 	roughness *= roughness;
-	float3 L = PrefilterEnvMap( roughness, vec, random );
+	float3 L = PrefilterEnvMap( roughness, vec, vec, random );
 	PrefilterEnvMapUAV[ uint3( id.xy, faceIndex ) ] = float4( L.xyz, 0 );
 }

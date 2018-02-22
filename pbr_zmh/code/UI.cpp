@@ -30,6 +30,8 @@ namespace
 		IDC_EXPOSURE,
 		IDC_INDIRECT_LIGHT_INTENSITY_STATIC,
 		IDC_INDIRECT_LIGHT_INTENSITY,
+		IDC_APPROX_LEVEL_STATIC,
+		IDC_APPROX_LEVEL,
 		IDC_DRAW_SKY,
 		IDC_SELECT_SKY_TEXTURE,
 		IDC_SCENE_TYPE,
@@ -178,6 +180,12 @@ namespace
 				if( g_onResetSampling )
 					g_onResetSampling();
 				break;
+			}
+			case IDC_APPROX_LEVEL:
+			{
+				g_globalControls.approxLevel = g_globalHUD.GetSlider( IDC_APPROX_LEVEL )->GetValue();
+				swprintf_s( str, MAX_PATH, L"Approx level: %u", g_globalControls.approxLevel );
+				g_globalHUD.GetStatic( IDC_APPROX_LEVEL_STATIC )->SetText( str );
 			}
 			case IDC_DIRECT_LIGHT:
 			{
@@ -349,6 +357,10 @@ void UIInit()
 	swprintf_s( str, MAX_PATH, L"Indirect light intensity: %1.2f", g_globalControls.indirectLightIntensity );
 	g_globalHUD.AddStatic( IDC_INDIRECT_LIGHT_INTENSITY_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
 	g_globalHUD.AddSlider( IDC_INDIRECT_LIGHT_INTENSITY, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_globalControls.indirectLightIntensity * 50.0f ) );
+
+	swprintf_s( str, MAX_PATH, L"Approx level: %u", g_globalControls.approxLevel );
+	g_globalHUD.AddStatic( IDC_APPROX_LEVEL_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
+	g_globalHUD.AddSlider( IDC_APPROX_LEVEL, 0, iY += 24, HUD_WIDTH, 22, 0, 2, g_globalControls.approxLevel );
 
 	swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_globalControls.exposure );
 	g_globalHUD.AddStatic( IDC_EXPOSURE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );

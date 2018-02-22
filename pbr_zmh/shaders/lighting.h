@@ -223,11 +223,8 @@ static const uint NUM_SAMPLES = 128;
 static const uint NUM_MIPS = 9;
 
 
-float3 PrefilterEnvMap( float roughness, float3 R, uint2 random )
+float3 PrefilterEnvMap( float roughness, float3 N, float3 V, uint2 random )
 {
-	float3 N = R;
-	float3 V = R;
-	
 	uint cubeWidth, cubeHeight;
     EnvironmentMap.GetDimensions(cubeWidth, cubeHeight);
 	
@@ -270,7 +267,7 @@ float2 GenerateBRDFLut( float roughness, float NoV, uint2 random )
 	float3 V = float3( sqrt( 1.0 - NoV * NoV ), 0.0, NoV );
 	
 	float2 lut = float2( 0.0, 0.0 );
-	for( uint i = 0u; i < NUM_SAMPLES; i++ ) 
+	for( uint i = 0; i < NUM_SAMPLES; i++ ) 
 	{
 		float2 Xi = Hammersley_v1( i, NUM_SAMPLES, random );
 		float3 H = ImportanceSampleGGX( Xi, roughness, N );
@@ -310,18 +307,35 @@ float3 ApproximatedIndirectLight( float3 N, float3 V, float metalness, float per
 	float NoV = abs( dot( N, V ) );
 	
 	float3 R = 2 * dot( V, N ) * N - V;
-	R = GetSpecularDominantDir( N, R, roughness );
 	float width, height, numberOfLevels;
 	PrefilteredEnvMap.GetDimensions( 0, width, height, numberOfLevels );
 	float mip = perceptualRoughness * numberOfLevels; // is the same as sqrt( roughness ) * numberOfLevels
 	
-	float3 L = PrefilteredEnvMap.SampleLevel( LinearWrapSampler, R, mip ).rgb;
-	float2 lut = BRDFLut.Sample( LinearClampSampler, float2( roughness, NoV ) ).xy;
+	float3 L = 0;
+	float2 lut = 0;
+
+	if( ApproxLevel == 0 )
+	{
+		L = PrefilterEnvMap( roughness, N, V, random );
+		lut = GenerateBRDFLut( roughness, NoV, random );
+	}
+	else if( ApproxLevel == 1 )
+	{
+		L = PrefilterEnvMap( roughness, R, R, random );
+		lut = GenerateBRDFLut( roughness, NoV, random );
+	} 
+	else if( ApproxLevel == 2 )
+	{
+		R = GetSpecularDominantDir( N, R, roughness );
+		L = PrefilteredEnvMap.SampleLevel( LinearWrapSampler, R, mip ).rgb;
+		lut = BRDFLut.Sample( LinearClampSampler, float2( roughness, NoV ) ).xy;
+	}
+		
+	float3 ret = 0;
+	if( EnableSpecularLight )
+		ret += L * ( F0 * lut.x + lut.y );
 	
-	//L = PrefilterEnvMap( roughness, R, random );
-	//lut = GenerateBRDFLut( roughness, NoV, random );
-	
-	return L * ( F0 * lut.x + lut.y );
+	return ret;
 }
 
 

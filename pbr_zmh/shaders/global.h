@@ -8,6 +8,7 @@ cbuffer GlobalParams : register( b0 )
 	float4 LightIrradiance;
 	float4x4 ShadowMatrix;
 	float IndirectLightIntensity;
+	uint ApproxLevel;
 	uint FrameIdx;
 	uint TotalSamples;
 	uint SamplesInStep;

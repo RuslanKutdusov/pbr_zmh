@@ -16,6 +16,7 @@ using namespace DirectX;
 
 
 //
+__declspec( align( 16 ) )
 struct GlobalParams
 {
 	XMMATRIX ViewProjMatrix;
@@ -24,6 +25,7 @@ struct GlobalParams
 	XMVECTOR LightIrradiance;
 	XMMATRIX ShadowMatrix;
 	float IndirectLightIntensity;
+	UINT ApproxLevel;
 	UINT FrameIdx;
 	UINT TotalSamples;
 	UINT SamplesInStep;
@@ -492,6 +494,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		g_cachedGlobalParams.LightIrradiance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIrradiance );
 		g_cachedGlobalParams.ShadowMatrix = XMMatrixIdentity();
 		g_cachedGlobalParams.IndirectLightIntensity = GetGlobalControls().indirectLightIntensity;
+		g_cachedGlobalParams.ApproxLevel = GetGlobalControls().approxLevel;
 		g_cachedGlobalParams.FrameIdx = g_frameIdx;
 		g_cachedGlobalParams.TotalSamples = TotalSamples;
 		g_cachedGlobalParams.SamplesInStep = SamplesInStep;

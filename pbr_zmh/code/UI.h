@@ -17,6 +17,7 @@ struct GlobalControls
 	float lightIrradiance		= 1.0f;
 	DirectX::XMVECTOR lightColor = DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 	float indirectLightIntensity = 1.0f;
+	UINT approxLevel			= 0;
 	bool enableDirectLight		= true;
 	bool enableIndirectLight	= true;
 	bool enableShadow			= true;
