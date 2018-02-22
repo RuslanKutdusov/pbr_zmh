@@ -1,8 +1,10 @@
 #include "Precompiled.h"
 
 
-const UINT CUBEMAP_RESOLUTION = 256;
-const UINT CUBEMAP_MIPS = 9;
+const UINT SPEC_CUBEMAP_RESOLUTION = 256;
+const UINT SPEC_CUBEMAP_MIPS = 9;
+const UINT DIFF_CUBEMAP_RESOLUTION = 256;
+const UINT DIFF_CUBEMAP_MIPS = 1;
 const UINT BRDF_LUT_SIZE = 256;
 const UINT THREAD_GROUP_SIZE = 32;
 
@@ -49,17 +51,17 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	texDesc.SampleDesc.Count = 1;
 
-	// prefiltered env map
+	// prefiltered specular env map
 	texDesc.ArraySize = 6;
-	texDesc.Width = CUBEMAP_RESOLUTION;
-	texDesc.Height = CUBEMAP_RESOLUTION;
-	texDesc.MipLevels = CUBEMAP_MIPS;
+	texDesc.Width = SPEC_CUBEMAP_RESOLUTION;
+	texDesc.Height = SPEC_CUBEMAP_RESOLUTION;
+	texDesc.MipLevels = SPEC_CUBEMAP_MIPS;
 	texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
-	V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &m_prefilteredEnvMap ) );
-	DXUT_SetDebugName( m_prefilteredEnvMap, "PrefilteredEnvMap" );
+	V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &m_prefilteredSpecEnvMap ) );
+	DXUT_SetDebugName( m_prefilteredSpecEnvMap, "PrefilteredSpecEnvMap" );
 
-	m_prefilteredEnvMapUAV = new ID3D11UnorderedAccessView*[ CUBEMAP_MIPS ];
-	for( UINT i = 0; i < CUBEMAP_MIPS; i++ )
+	m_prefilteredSpecEnvMapUAV = new ID3D11UnorderedAccessView*[ SPEC_CUBEMAP_MIPS ];
+	for( UINT i = 0; i < SPEC_CUBEMAP_MIPS; i++ )
 	{
 		D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc;
 		ZeroMemory( &uavDesc, sizeof( D3D11_UNORDERED_ACCESS_VIEW_DESC ) );
@@ -69,7 +71,7 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 		uavDesc.Texture2DArray.FirstArraySlice = 0;
 		uavDesc.Texture2DArray.MipSlice = i;
 
-		V_RETURN( pd3dDevice->CreateUnorderedAccessView( m_prefilteredEnvMap, &uavDesc, &m_prefilteredEnvMapUAV[ i ] ) );
+		V_RETURN( pd3dDevice->CreateUnorderedAccessView( m_prefilteredSpecEnvMap, &uavDesc, &m_prefilteredSpecEnvMapUAV[ i ] ) );
 	}
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
@@ -78,7 +80,7 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
 	srvDesc.TextureCube.MipLevels = texDesc.MipLevels;
 	srvDesc.TextureCube.MostDetailedMip = 0;
-	V_RETURN( pd3dDevice->CreateShaderResourceView( m_prefilteredEnvMap, &srvDesc, &m_prefilteredEnvMapSRV ) );
+	V_RETURN( pd3dDevice->CreateShaderResourceView( m_prefilteredSpecEnvMap, &srvDesc, &m_prefilteredSpecEnvMapSRV ) );
 
 	// BRDF Lut
 	texDesc.Format = DXGI_FORMAT_R16G16_FLOAT;
@@ -103,39 +105,68 @@ HRESULT EnvMapFilter::OnD3D11CreateDevice( ID3D11Device* pd3dDevice )
 	srvDesc.Texture2D.MostDetailedMip = 0;
 	V_RETURN( pd3dDevice->CreateShaderResourceView( m_brdfLut, &srvDesc, &m_brdfLutSRV ) );
 
+	// prefiltered diffuse env map 
+	texDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	texDesc.ArraySize = 6;
+	texDesc.Width = DIFF_CUBEMAP_RESOLUTION;
+	texDesc.Height = DIFF_CUBEMAP_RESOLUTION;
+	texDesc.MipLevels = DIFF_CUBEMAP_MIPS;
+	texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+	V_RETURN( pd3dDevice->CreateTexture2D( &texDesc, nullptr, &m_prefilteredDiffEnvMap ) );
+	DXUT_SetDebugName( m_prefilteredDiffEnvMap, "PrefilteredDiffEnvMap" );
+
+	ZeroMemory( &uavDesc, sizeof( D3D11_UNORDERED_ACCESS_VIEW_DESC ) );
+	uavDesc.Format = texDesc.Format;
+	uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2DARRAY;
+	uavDesc.Texture2DArray.ArraySize = 6;
+	uavDesc.Texture2DArray.FirstArraySlice = 0;
+	uavDesc.Texture2DArray.MipSlice = 0;
+	V_RETURN( pd3dDevice->CreateUnorderedAccessView( m_prefilteredDiffEnvMap, &uavDesc, &m_prefilteredDiffEnvMapUAV ) );
+
+	ZeroMemory( &srvDesc, sizeof( D3D11_SHADER_RESOURCE_VIEW_DESC ) );
+	srvDesc.Format = texDesc.Format;
+	srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+	srvDesc.TextureCube.MipLevels = texDesc.MipLevels;
+	srvDesc.TextureCube.MostDetailedMip = 0;
+	V_RETURN( pd3dDevice->CreateShaderResourceView( m_prefilteredDiffEnvMap, &srvDesc, &m_prefilteredDiffEnvMapSRV ) );
+
 	return S_OK;
 }
 
 
 void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT envMapSlot, ID3D11ShaderResourceView* envmap )
 {
-	pd3dImmediateContext->CSSetShader( m_envMapPrefilter, nullptr, 0 );
 	pd3dImmediateContext->CSSetConstantBuffers( 1, 1, &m_envMapPrefilterCb );
 	pd3dImmediateContext->CSSetShaderResources( envMapSlot, 1, &envmap );
 
-	for( UINT i = 0; i < CUBEMAP_MIPS; i++ )
+	for( UINT i = 0; i < SPEC_CUBEMAP_MIPS; i++ )
 	{
-		UINT mipSize = ComputeMipSize( CUBEMAP_RESOLUTION, i );
-		UINT threadGroupCount = std::max( mipSize / THREAD_GROUP_SIZE, 1u );
-
 		float clearValues[ 4 ] = { 0.0f, 0.0f, 0.0f, 0.0f };
-		pd3dImmediateContext->ClearUnorderedAccessViewFloat( m_prefilteredEnvMapUAV[ i ], clearValues );
-		pd3dImmediateContext->CSSetUnorderedAccessViews( 0, 1, &m_prefilteredEnvMapUAV[ i ], nullptr );
+		pd3dImmediateContext->ClearUnorderedAccessViewFloat( m_prefilteredSpecEnvMapUAV[ i ], clearValues );
+		pd3dImmediateContext->CSSetUnorderedAccessViews( 0, 1, &m_prefilteredSpecEnvMapUAV[ i ], nullptr );
 
 		D3D11_MAPPED_SUBRESOURCE mappedSubres;
 		pd3dImmediateContext->Map( m_envMapPrefilterCb, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedSubres );
 		Constants consts;
 		consts.MipIndex = i;
-		consts.MipsNumber = CUBEMAP_MIPS;
+		consts.MipsNumber = SPEC_CUBEMAP_MIPS;
 		memcpy( mappedSubres.pData, &consts, sizeof( Constants ) );
 		pd3dImmediateContext->Unmap( m_envMapPrefilterCb, 0 );
 
+		pd3dImmediateContext->CSSetShader( m_envMapSpecPrefilter, nullptr, 0 );
+		UINT mipSize = ComputeMipSize( SPEC_CUBEMAP_RESOLUTION, i );
+		UINT threadGroupCount = std::max( mipSize / THREAD_GROUP_SIZE, 1u );
 		pd3dImmediateContext->Dispatch( threadGroupCount, threadGroupCount, 6 );
 	}
 
 	pd3dImmediateContext->CSSetShader( m_brdfLutGen, nullptr, 0 );
 	pd3dImmediateContext->CSSetUnorderedAccessViews( 0, 1, &m_brdfLutUav, nullptr );
 	pd3dImmediateContext->Dispatch( BRDF_LUT_SIZE / THREAD_GROUP_SIZE, BRDF_LUT_SIZE / THREAD_GROUP_SIZE, 1 );
+
+	pd3dImmediateContext->CSSetShader( m_envMapDiffPrefilter, nullptr, 0 );
+	pd3dImmediateContext->CSSetUnorderedAccessViews( 0, 1, &m_prefilteredDiffEnvMapUAV, nullptr );
+	UINT threadGroupCount = DIFF_CUBEMAP_RESOLUTION / THREAD_GROUP_SIZE;
+	pd3dImmediateContext->Dispatch( threadGroupCount, threadGroupCount, 6 );
 
 	ID3D11ShaderResourceView* nullSrv = nullptr;
 	pd3dImmediateContext->CSSetShaderResources( envMapSlot, 1, &nullSrv );
@@ -147,29 +178,33 @@ void EnvMapFilter::FilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext, UINT
 
 void EnvMapFilter::OnD3D11DestroyDevice()
 {
-	SAFE_RELEASE( m_envMapPrefilter );
+	SAFE_RELEASE( m_envMapSpecPrefilter );
 	SAFE_RELEASE( m_brdfLutGen );
 	SAFE_RELEASE( m_envMapPrefilterCb );
 
-	if( m_prefilteredEnvMapUAV )
+	if( m_prefilteredSpecEnvMapUAV )
 	{
-		for( UINT i = 0; i < CUBEMAP_MIPS; i++ )
-			SAFE_RELEASE( m_prefilteredEnvMapUAV[ i ] );
+		for( UINT i = 0; i < SPEC_CUBEMAP_MIPS; i++ )
+			SAFE_RELEASE( m_prefilteredSpecEnvMapUAV[ i ] );
 
-		delete[] m_prefilteredEnvMapUAV;
+		delete[] m_prefilteredSpecEnvMapUAV;
 	}
-	SAFE_RELEASE( m_prefilteredEnvMapSRV );
-	SAFE_RELEASE( m_prefilteredEnvMap );
+	SAFE_RELEASE( m_prefilteredSpecEnvMapSRV );
+	SAFE_RELEASE( m_prefilteredSpecEnvMap );
 
 	SAFE_RELEASE( m_brdfLutUav );
 	SAFE_RELEASE( m_brdfLutSRV );
 	SAFE_RELEASE( m_brdfLut );
+
+	SAFE_RELEASE( m_prefilteredDiffEnvMapSRV );
+	SAFE_RELEASE( m_prefilteredDiffEnvMapUAV );
+	SAFE_RELEASE( m_prefilteredDiffEnvMap );
 }
 
 
-ID3D11ShaderResourceView* EnvMapFilter::GetPrefilteredEnvMap()
+ID3D11ShaderResourceView* EnvMapFilter::GetPrefilteredSpecEnvMap()
 {
-	return m_prefilteredEnvMapSRV;
+	return m_prefilteredSpecEnvMapSRV;
 }
 
 
@@ -179,24 +214,40 @@ ID3D11ShaderResourceView* EnvMapFilter::GetBRDFLut()
 }
 
 
+ID3D11ShaderResourceView* EnvMapFilter::GetPrefilteredDiffEnvMap()
+{
+	return m_prefilteredDiffEnvMapSRV;
+}
+
+
 HRESULT	EnvMapFilter::ReloadShaders( ID3D11Device* pd3dDevice )
 {
 	HRESULT hr;
-	ID3D11ComputeShader* newEnvMapPrefilter = nullptr;
+	ID3D11ComputeShader* newEnvMapSpecPrefilter = nullptr;
 	ID3D11ComputeShader* newBrdfLutGen = nullptr;
+	ID3D11ComputeShader* newEnvMapDiffPrefilter = nullptr;
 
 	ID3DBlob* blob = nullptr;
-	V_RETURN( CompileShader( L"shaders\\envmapprefilter.hlsl", nullptr, "cs_main", SHADER_COMPUTE, &blob ) );
-	V_RETURN( pd3dDevice->CreateComputeShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &newEnvMapPrefilter ) );
-	DXUT_SetDebugName( newEnvMapPrefilter, "EnvMapPrefilter" );
+	D3D_SHADER_MACRO macros[ 2 ];
+	ZeroMemory( macros, sizeof( macros ) );
+	macros[ 0 ].Name = "SPECULAR";
+	V_RETURN( CompileShader( L"shaders\\envmapprefilter.hlsl", macros, "cs_main", SHADER_COMPUTE, &blob ) );
+	V_RETURN( pd3dDevice->CreateComputeShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &newEnvMapSpecPrefilter ) );
+	DXUT_SetDebugName( newEnvMapSpecPrefilter, "EnvMapSpecPrefilter" );
 
 	V_RETURN( CompileShader( L"shaders\\brdflutgen.hlsl", nullptr, "cs_main", SHADER_COMPUTE, &blob ) );
 	V_RETURN( pd3dDevice->CreateComputeShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &newBrdfLutGen ) );
 	DXUT_SetDebugName( newBrdfLutGen, "BrdfLutGen" );
 
-	SAFE_RELEASE( m_envMapPrefilter );
+	macros[ 0 ].Name = "DIFFUSE";
+	V_RETURN( CompileShader( L"shaders\\envmapprefilter.hlsl", macros, "cs_main", SHADER_COMPUTE, &blob ) );
+	V_RETURN( pd3dDevice->CreateComputeShader( blob->GetBufferPointer(), blob->GetBufferSize(), nullptr, &newEnvMapDiffPrefilter ) );
+	DXUT_SetDebugName( newEnvMapDiffPrefilter, "EnvMapDiffPrefilter" );
+
+	SAFE_RELEASE( m_envMapSpecPrefilter );
 	SAFE_RELEASE( m_brdfLutGen );
-	m_envMapPrefilter = newEnvMapPrefilter;
+	m_envMapSpecPrefilter = newEnvMapSpecPrefilter;
+	m_envMapDiffPrefilter = newEnvMapDiffPrefilter;
 	m_brdfLutGen = newBrdfLutGen;
 
 	return S_OK;

@@ -8,15 +8,14 @@ cbuffer Constants : register( b1 )
 	uint2 padding0;
 };
 
-RWTexture2DArray< float4 > PrefilterEnvMapUAV : register( u0 );
+RWTexture2DArray< float4 > PrefilteredEnvMapUAV : register( u0 );
 
 [numthreads(32, 32, 1)]
 void cs_main( uint2 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID )
 {
 	uint faceIndex = groupId.z;
 	uint width, height, arraySize;
-	// returns dimensions of mip
-	PrefilterEnvMapUAV.GetDimensions( width, height, arraySize );
+	PrefilteredEnvMapUAV.GetDimensions( width, height, arraySize );
 	if( id.x >= width || id.y >= height )
 		return;
 	
@@ -46,8 +45,13 @@ void cs_main( uint2 id : SV_DispatchThreadID, uint3 groupId : SV_GroupID )
 	vec = mul( vec, rotation[ faceIndex ] );
 	
 	uint2 random = RandVector_v2( id.xy );
+#ifdef SPECULAR
 	float roughness = ( float )MipIndex / ( float )MipsNumber;
 	roughness *= roughness;
-	float3 L = PrefilterEnvMap( roughness, vec, vec, random );
-	PrefilterEnvMapUAV[ uint3( id.xy, faceIndex ) ] = float4( L.xyz, 0 );
+	float3 L = PrefilterSpecularEnvMap( roughness, vec, vec, random );
+#else
+	float3 L = PrefilterDiffuseEnvMap( vec, random );
+#endif
+	
+	PrefilteredEnvMapUAV[ uint3( id.xy, faceIndex ) ] = float4( L.xyz, 0 );
 }

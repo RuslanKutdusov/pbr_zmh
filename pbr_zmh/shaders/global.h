@@ -32,8 +32,9 @@ struct SdkMeshVertex
 	float3 binormal : BINORMAL;
 };
 
+TextureCube PrefilteredDiffuseEnvMap: register( t123 );
 Texture2D BRDFLut : register( t124 );
-TextureCube PrefilteredEnvMap: register( t125 );
+TextureCube PrefilteredSpecularEnvMap: register( t125 );
 Texture2D ShadowMap : register( t126 );
 TextureCube EnvironmentMap : register( t127 );
 SamplerState LinearClampSampler : register( s13 );

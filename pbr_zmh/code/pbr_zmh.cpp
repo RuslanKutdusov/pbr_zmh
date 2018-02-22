@@ -2,8 +2,9 @@
 #include "resource.h"
 
 #define GLOBAL_PARAMS_CB 0
+#define PREFILTERED_DIFF_ENV_MAP 123
 #define BRDF_LUT 124
-#define PREFILTERED_ENV_MAP 125
+#define PREFILTERED_SPEC_ENV_MAP 125
 #define SHADOW_MAP 126
 #define ENVIRONMENT_MAP 127
 #define LINEAR_CLAMP_SAMPLER_STATE 13
@@ -278,8 +279,9 @@ void PrefilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext )
 {
 	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Filter env map" );
 	ID3D11ShaderResourceView* nullSrv = nullptr;
-	pd3dImmediateContext->PSSetShaderResources( PREFILTERED_ENV_MAP, 1, &nullSrv );
+	pd3dImmediateContext->PSSetShaderResources( PREFILTERED_SPEC_ENV_MAP, 1, &nullSrv );
 	pd3dImmediateContext->PSSetShaderResources( BRDF_LUT, 1, &nullSrv );
+	pd3dImmediateContext->PSSetShaderResources( PREFILTERED_DIFF_ENV_MAP, 1, &nullSrv );
 	g_envMapFilter.FilterEnvMap( pd3dImmediateContext, ENVIRONMENT_MAP, g_skyRenderer.GetCubeMapSRV() );
 	DXUT_EndPerfEvent();
 }
@@ -413,12 +415,14 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 		pd3dImmediateContext->OMSetDepthStencilState( g_lightPassDepthStencilState, 0 );
 
 		ID3D11ShaderResourceView* environmentMap = g_skyRenderer.GetCubeMapSRV();
-		ID3D11ShaderResourceView* prefilteredEnvMap = g_envMapFilter.GetPrefilteredEnvMap();
+		ID3D11ShaderResourceView* prefilteredSpecEnvMap = g_envMapFilter.GetPrefilteredSpecEnvMap();
 		ID3D11ShaderResourceView* brdfLut = g_envMapFilter.GetBRDFLut();
+		ID3D11ShaderResourceView* prefilteredDiffEnvMap = g_envMapFilter.GetPrefilteredDiffEnvMap();
 		pd3dImmediateContext->PSSetShaderResources( SHADOW_MAP, 1, &g_shadowMap.srv );
 		pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
-		pd3dImmediateContext->PSSetShaderResources( PREFILTERED_ENV_MAP, 1, &prefilteredEnvMap );
+		pd3dImmediateContext->PSSetShaderResources( PREFILTERED_SPEC_ENV_MAP, 1, &prefilteredSpecEnvMap );
 		pd3dImmediateContext->PSSetShaderResources( BRDF_LUT, 1, &brdfLut );
+		pd3dImmediateContext->PSSetShaderResources( PREFILTERED_DIFF_ENV_MAP, 1, &prefilteredDiffEnvMap );
 		pd3dImmediateContext->OMSetBlendState( g_doubleRtBlendState, nullptr, ~0u );
 
 		if( GetGlobalControls().drawSky )
