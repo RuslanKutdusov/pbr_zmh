@@ -91,9 +91,15 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	}
 	
 	PSOutput output = ( PSOutput )0;
+	uint2 random = RandVector_v2( pixelPos.xy );
+
 	if( InstanceData[ input.id ].MaterialType == MATERIAL_MERL )
 	{
-		output.directLight.rgb = CalcDirectLight( MerlBRDF, LightDir.xyz, view, normal, tangent, binormal ) * LightIrradiance.rgb;
+		if( EnableDirectLight )
+			output.directLight.rgb = CalcDirectLight( MerlBRDF, LightDir.xyz, view, normal, tangent, binormal ) * LightIrradiance.rgb;
+
+		if( EnableIndirectLight ) 
+			output.indirectLight.rgba = CalcIndirectLight( MerlBRDF, normal, view, tangent, binormal, random );
 	}
 	else
 	{
@@ -101,18 +107,18 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 		{
 			// Lo = ( Fd + Fs ) * (n,l) * E
 			output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb;
-			if( EnableShadow )
-				output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
 		}
 		if( EnableIndirectLight ) 
 		{
-			uint2 random = RandVector_v2( pixelPos.xy );
 			output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random );
 			/*output.directLight.rgb += ApproximatedIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random ).rgb;
 			output.indirectLight.rgb = 0;
 			output.indirectLight.a = 0.0;*/
 		}
 	}
+
+	if( EnableShadow )
+		output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
 
 	return output;
 }
