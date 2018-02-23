@@ -90,35 +90,42 @@ int theta_diff_index(float theta_diff)
 
 float3 EvaluteMerlBRDF( Buffer<float> brdf, float3 toLight, float3 toViewer, float3 normal, float3 tangent, float3 bitangent )
 {
-    float3 H = normalize(toLight + toViewer);
-    float theta_H = acos(saturate(dot(normal, H)));
-    float theta_diff = acos(saturate(dot(H, toLight)));
-    float phi_diff=0;
+    float3 H = normalize( toLight + toViewer );
+    float theta_H = acos( saturate( dot( normal, H ) ) );
+    float theta_diff = acos( saturate( dot( H, toLight ) ) );
+    float phi_diff = 0;
 
-    if (theta_diff < 1e-3) {
+    if( theta_diff < 1e-3 ) 
+    {
         // phi_diff indeterminate, use phi_half instead
-        phi_diff = atan2(clamp(-dot(toLight, bitangent), -1, 1), clamp(dot(toLight, tangent), -1, 1));
+        phi_diff = atan2( clamp( -dot( toLight, bitangent ), -1, 1 ),
+        				clamp( dot( toLight, tangent ), -1, 1 ) );
     }
-    else if (theta_H > 1e-3) {
+    else if( theta_H > 1e-3 )
+    {
         // use Gram-Schmidt orthonormalization to find diff basis vectors
-        float3 u = -normalize(normal - dot(normal,H) * H);
-        float3 v = cross(H, u);
-        phi_diff = atan2(clamp(dot(toLight,v), -1, 1), clamp(dot(toLight,u), -1, 1));
+        float3 u = -normalize( normal - dot( normal, H ) * H );
+        float3 v = cross( H, u );
+        phi_diff = atan2( clamp( dot( toLight, v ), -1, 1 ), 
+        				clamp( dot( toLight, u ), -1, 1 ) );
     } 
-    else theta_H = 0;
+    else
+    { 
+    	theta_H = 0;
+    }
 
     // Find index.
     // Note that phi_half is ignored, since isotropic BRDFs are assumed
-    int ind = phi_diff_index(phi_diff) +
-        theta_diff_index(theta_diff) * BRDF_SAMPLING_RES_PHI_D / 2 +
-        theta_half_index(theta_H) * BRDF_SAMPLING_RES_PHI_D / 2 *
+    int ind = phi_diff_index( phi_diff ) +
+        theta_diff_index( theta_diff ) * BRDF_SAMPLING_RES_PHI_D / 2 +
+        theta_half_index( theta_H ) * BRDF_SAMPLING_RES_PHI_D / 2 *
         BRDF_SAMPLING_RES_THETA_D;
 
     int redIndex = ind;
-    int greenIndex = ind + BRDF_SAMPLING_RES_THETA_H*BRDF_SAMPLING_RES_THETA_D*BRDF_SAMPLING_RES_PHI_D/2;
-    int blueIndex = ind + BRDF_SAMPLING_RES_THETA_H*BRDF_SAMPLING_RES_THETA_D*BRDF_SAMPLING_RES_PHI_D;
+    int greenIndex = ind + BRDF_SAMPLING_RES_THETA_H * BRDF_SAMPLING_RES_THETA_D * BRDF_SAMPLING_RES_PHI_D / 2;
+    int blueIndex = ind + BRDF_SAMPLING_RES_THETA_H * BRDF_SAMPLING_RES_THETA_D * BRDF_SAMPLING_RES_PHI_D;
 
-    float NoL = saturate( dot( toLight, normal) );
+    float NoL = saturate( dot( toLight, normal ) );
     return float3(
 				brdf[ redIndex ].r * RED_SCALE,
                 brdf[ greenIndex ].r * GREEN_SCALE,
