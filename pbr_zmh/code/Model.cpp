@@ -32,9 +32,7 @@ HRESULT Model::Load( ID3D11Device* pd3dDevice, const wchar_t* folder, const wcha
 			const UINT printfBufSize = 256;
 			aiString aistring;
 
-			wchar_t materialName[ printfBufSize ];
 			aScene->mMaterials[ i ]->Get( AI_MATKEY_NAME, aistring );
-			wsprintf( materialName, L"%S", aistring.C_Str() );
 
 			wchar_t albedoPath[ printfBufSize ];
 			wchar_t normalPath[ printfBufSize ];
@@ -57,7 +55,7 @@ HRESULT Model::Load( ID3D11Device* pd3dDevice, const wchar_t* folder, const wcha
 			if( aScene->mMaterials[ i ]->GetTexture( textureMapping[ kTextureRoughness ], 0, &aistring ) == aiReturn_SUCCESS )
 				wsprintf( roughnessPath, L"%s\\%S", folder, aistring.C_Str() );
 
-			materials[ i ].Load( pd3dDevice, materialName, albedoPath, normalPath, roughnessPath, metalnessPath );
+			materials[ i ].Load( pd3dDevice, aistring.C_Str(), albedoPath, normalPath, roughnessPath, metalnessPath );
 		}
 		materialsNum = aScene->mNumMaterials;
 	}

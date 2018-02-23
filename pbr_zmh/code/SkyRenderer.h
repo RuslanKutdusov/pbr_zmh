@@ -13,7 +13,7 @@ public:
 	void    OnD3D11DestroyDevice();
 	HRESULT	ReloadShaders( ID3D11Device* pd3dDevice );
 
-	HRESULT LoadSkyTexture( ID3D11Device* pd3dDevice, const wchar_t* filename );
+	HRESULT LoadSkyTexture( ID3D11Device* pd3dDevice, const char* filename );
 	ID3D11ShaderResourceView* GetCubeMapSRV() const { return m_cubeMapSRV; }
 
 public:

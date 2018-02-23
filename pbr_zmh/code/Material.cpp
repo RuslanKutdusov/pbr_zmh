@@ -1,7 +1,7 @@
 #include "Precompiled.h"
 
 
-HRESULT Material::Load( ID3D11Device* pd3dDevice, const wchar_t* materialName )
+HRESULT Material::Load( ID3D11Device* pd3dDevice, const char* materialName )
 {
 	const wchar_t* extension = L"dds";
 	const UINT printfBufSize = 256;
@@ -11,22 +11,22 @@ HRESULT Material::Load( ID3D11Device* pd3dDevice, const wchar_t* materialName )
 	wchar_t metalnessPath[ printfBufSize ];
 
 	memset( albedoPath, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( albedoPath, L"%s\\albedo.%s", materialName, extension );
+	wsprintf( albedoPath, L"%S\\albedo.%s", materialName, extension );
 
 	memset( normalPath, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( normalPath, L"%s\\normal.%s", materialName, extension );
+	wsprintf( normalPath, L"%S\\normal.%s", materialName, extension );
 
 	memset( roughnessPath, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( roughnessPath, L"%s\\roughness.%s", materialName, extension );
+	wsprintf( roughnessPath, L"%S\\roughness.%s", materialName, extension );
 
 	memset( metalnessPath, 0, printfBufSize * sizeof( wchar_t ) );
-	wsprintf( metalnessPath, L"%s\\metalness.%s", materialName, extension );
+	wsprintf( metalnessPath, L"%S\\metalness.%s", materialName, extension );
 
 	return Load( pd3dDevice, materialName, albedoPath, normalPath, roughnessPath, metalnessPath );
 }
 
 
-HRESULT Material::Load( ID3D11Device* pd3dDevice, const wchar_t* materialName, const wchar_t* albedoPath, const wchar_t* normalPath,
+HRESULT Material::Load( ID3D11Device* pd3dDevice, const char* materialName, const wchar_t* albedoPath, const wchar_t* normalPath,
 	const wchar_t* roughnessPath, const wchar_t* metalnessPath )
 {
 	ID3D11DeviceContext* ctx;

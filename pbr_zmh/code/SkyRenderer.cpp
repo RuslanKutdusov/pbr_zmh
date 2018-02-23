@@ -279,11 +279,17 @@ HRESULT	SkyRenderer::ReloadShaders( ID3D11Device* pd3dDevice )
 }
 
 
-HRESULT SkyRenderer::LoadSkyTexture( ID3D11Device* pd3dDevice, const wchar_t* filename )
+HRESULT SkyRenderer::LoadSkyTexture( ID3D11Device* pd3dDevice, const char* filename )
 {
+	const UINT printfBufSize = 256;
+	wchar_t wFileName[ printfBufSize ];
+
+	memset( wFileName, 0, printfBufSize * sizeof( wchar_t ) );
+	wsprintf( wFileName, L"%S", filename );
+
 	HRESULT hr;
 	SAFE_RELEASE( m_skyTextureSRV );
-	V_RETURN( DXUTCreateShaderResourceViewFromFile( pd3dDevice, filename, &m_skyTextureSRV ) );
+	V_RETURN( DXUTCreateShaderResourceViewFromFile( pd3dDevice, wFileName, &m_skyTextureSRV ) );
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
 	m_skyTextureSRV->GetDesc( &srvDesc );

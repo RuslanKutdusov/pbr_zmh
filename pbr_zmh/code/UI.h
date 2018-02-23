@@ -12,12 +12,12 @@ enum SCENE_TYPE
 
 struct GlobalControls
 {
-	int lightDirVert			= 45;
-	int lightDirHor				= 130;
+	float lightDirVert			= 45.0f;
+	float lightDirHor			= 130.0f;
 	float lightIrradiance		= 1.0f;
 	DirectX::XMVECTOR lightColor = DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 	float indirectLightIntensity = 1.0f;
-	UINT approxLevel			= 0;
+	int approxLevel				= 0;
 	bool enableDirectLight		= true;
 	bool enableIndirectLight	= true;
 	bool enableShadow			= true;
@@ -25,7 +25,7 @@ struct GlobalControls
 	bool enableSpecularLight	= true;
 	float exposure				= 1.0f;
 	bool drawSky				= true;
-	const wchar_t* skyTexture	= L"";
+	const char* skyTexture		= "";
 	SCENE_TYPE sceneType		= SCENE_ONE_SPHERE;
 };
 
@@ -37,7 +37,7 @@ struct OneSphereSceneControls
 	float reflectance			= 1.0f;
 	DirectX::XMVECTOR albedo	= DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 	bool useMaterial			= false;
-	const wchar_t* material		= L"materials\\default";
+	const char* material		= "materials\\default";
 };
 
 

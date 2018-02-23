@@ -203,7 +203,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	blendDesc.RenderTarget[ 1 ].RenderTargetWriteMask = 0x0f;
 	V_RETURN( pd3dDevice->CreateBlendState( &blendDesc, &g_doubleRtBlendState ) );
 
-	g_material.Load( pd3dDevice, L"materials\\default" );
+	g_material.Load( pd3dDevice, "materials\\default" );
 
 	g_shadowMap.Init( pd3dDevice, SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, "ShadowMap" );
 

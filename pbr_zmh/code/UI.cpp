@@ -7,84 +7,36 @@ using namespace DirectX;
 
 namespace
 {
-	//--------------------------------------------------------------------------------------
-	// UI control IDs
-	//--------------------------------------------------------------------------------------
-	enum IDC
-	{
-		// global controls
-		IDC_CHANGEDEVICE = 1,
-		IDC_RELOAD_SHADERS,
-		IDC_LIGHTVERT_STATIC,
-		IDC_LIGHTVERT,
-		IDC_LIGHTHOR_STATIC,
-		IDC_LIGHTHOR,
-		IDC_LIGHT_IRRADIANCE_STATIC,
-		IDC_LIGHT_IRRADIANCE,
-		IDC_LIGHT_COLOR,
-		IDC_DIRECT_LIGHT,
-		IDC_INDIRECT_LIGHT,
-		IDC_ENABLE_DIFFUSE_LIGHT,
-		IDC_ENABLE_SPECULAR_LIGHT,
-		IDC_ENABLE_SHADOW,
-		IDC_EXPOSURE_STATIC,
-		IDC_EXPOSURE,
-		IDC_INDIRECT_LIGHT_INTENSITY_STATIC,
-		IDC_INDIRECT_LIGHT_INTENSITY,
-		IDC_APPROX_LEVEL_STATIC,
-		IDC_APPROX_LEVEL,
-		IDC_DRAW_SKY,
-		IDC_SELECT_SKY_TEXTURE,
-		IDC_SCENE_TYPE,
-		// one sphere scene controls
-		IDC_METALNESS_STATIC,
-		IDC_METALNESS,
-		IDC_ROUGHNESS_STATIC,
-		IDC_ROUGHNESS,
-		IDC_REFLECTANCE_STATIC,
-		IDC_REFLECTANCE,
-		IDC_ALBEDO,
-		IDC_USE_MATERIAL,
-		IDC_MATERIAL,
-		// multiple sphere scene controls
-		IDC_MS_ALBEDO,
-		// spozna scene controls
-		IDC_POINT_LIGHT_FLUX_STATIC,
-		IDC_POINT_LIGHT_FLUX,
-		IDC_POINT_LIGHT_COLOR,
-	};
-	const int HUD_WIDTH = 250;
-
-	const wchar_t* g_skyTextureFiles[] = {
-		L"HDRs\\galileo_cross.dds",
-		L"HDRs\\grace_cross.dds",
-		L"HDRs\\rnl_cross.dds",
-		L"HDRs\\stpeters_cross.dds",
-		L"HDRs\\uffizi_cross.dds",
-		L"HDRs\\ennis.dds",
-		L"HDRs\\grace-new.dds",
-		L"HDRs\\pisa.dds",
+	const char* g_skyTextureFiles[] = {
+		"HDRs\\galileo_cross.dds",
+		"HDRs\\grace_cross.dds",
+		"HDRs\\rnl_cross.dds",
+		"HDRs\\stpeters_cross.dds",
+		"HDRs\\uffizi_cross.dds",
+		"HDRs\\ennis.dds",
+		"HDRs\\grace-new.dds",
+		"HDRs\\pisa.dds",
 	};
 
-	const wchar_t* g_materials[] = {
-		L"materials\\default",
-		L"materials\\Brick_baked",
-		L"materials\\Brick_Beige",
-		L"materials\\Brick_Cinder",
-		L"materials\\Brick_Concrete",
-		L"materials\\Brick_Yellow",
-		L"materials\\Concrete_Shimizu",
-		L"materials\\Concrete_Tadao",
-		L"materials\\copper-oxidized",
-		L"materials\\copper-rock",
-		L"materials\\copper-scuffed",
-		L"materials\\greasy-pan",
-		L"materials\\OldPlaster_00",
-		L"materials\\OldPlaster_01",
-		L"materials\\rustediron",
-		L"materials\\streakedmetal",
-		L"materials\\T_Paint_Black",
-		L"materials\\T_Tile_White",
+	const char* g_materials[] = {
+		"materials\\default",
+		"materials\\Brick_baked",
+		"materials\\Brick_Beige",
+		"materials\\Brick_Cinder",
+		"materials\\Brick_Concrete",
+		"materials\\Brick_Yellow",
+		"materials\\Concrete_Shimizu",
+		"materials\\Concrete_Tadao",
+		"materials\\copper-oxidized",
+		"materials\\copper-rock",
+		"materials\\copper-scuffed",
+		"materials\\greasy-pan",
+		"materials\\OldPlaster_00",
+		"materials\\OldPlaster_01",
+		"materials\\rustediron",
+		"materials\\streakedmetal",
+		"materials\\T_Paint_Black",
+		"materials\\T_Tile_White",
 	};
 
 	GlobalControls				g_globalControls;
@@ -94,14 +46,6 @@ namespace
 
 	CDXUTDialogResourceManager	g_DialogResourceManager; // manager for shared resources of dialogs
 	CD3DSettingsDlg				g_D3DSettingsDlg;       // Device settings dialog
-	CDXUTDialog                 g_globalHUD;            
-	UINT						g_globalHUDHeight;
-	CDXUTDialog                 g_oneSphereHUD;
-	UINT						g_oneSphereHUDHeight;
-	CDXUTDialog                 g_multipleSphereHUD;
-	UINT						g_multipleSphereHUDHeight;
-	CDXUTDialog                 g_sponzaHUD;
-	UINT						g_sponzaHUDHeight;
 	CDXUTTextHelper*            g_pTxtHelper = nullptr;
 
 	UICallback					g_onShaderReload = nullptr;
@@ -128,315 +72,13 @@ namespace
 
 		return false;
 	}
-
-
-	void CALLBACK OnGUIEvent( UINT nEvent, int nControlID, CDXUTControl* pControl, void* pUserContext )
-	{
-		WCHAR str[ MAX_PATH ];
-
-		switch( nControlID )
-		{
-			case IDC_CHANGEDEVICE:
-			{
-				g_D3DSettingsDlg.SetActive( !g_D3DSettingsDlg.IsActive() );
-				break;
-			}
-			case IDC_RELOAD_SHADERS:
-			{
-				if( g_onShaderReload )
-					g_onShaderReload();
-				break;
-			}
-			case IDC_LIGHTVERT:
-			{
-				g_globalControls.lightDirVert = g_globalHUD.GetSlider( IDC_LIGHTVERT )->GetValue();
-				swprintf_s( str, MAX_PATH, L"Light vert: %d", g_globalControls.lightDirVert );
-				g_globalHUD.GetStatic( IDC_LIGHTVERT_STATIC )->SetText( str );
-				break;
-			}
-			case IDC_LIGHTHOR:
-			{
-				g_globalControls.lightDirHor = g_globalHUD.GetSlider( IDC_LIGHTHOR )->GetValue();
-				swprintf_s( str, MAX_PATH, L"Light hor: %d", g_globalControls.lightDirHor );
-				g_globalHUD.GetStatic( IDC_LIGHTHOR_STATIC )->SetText( str );
-				break;
-			}
-			case IDC_LIGHT_IRRADIANCE:
-			{
-				g_globalControls.lightIrradiance = g_globalHUD.GetSlider( IDC_LIGHT_IRRADIANCE )->GetValue() / 5.0f;
-				swprintf_s( str, MAX_PATH, L"Light irradiance( W/m2 ): %1.2f", g_globalControls.lightIrradiance );
-				g_globalHUD.GetStatic( IDC_LIGHT_IRRADIANCE_STATIC )->SetText( str );
-				break;
-			}
-			case IDC_LIGHT_COLOR:
-			{
-				ChooseColor( g_globalControls.lightColor );
-				break;
-			}
-			case IDC_INDIRECT_LIGHT_INTENSITY:
-			{
-				g_globalControls.indirectLightIntensity = g_globalHUD.GetSlider( IDC_INDIRECT_LIGHT_INTENSITY )->GetValue() / 50.0f;
-				swprintf_s( str, MAX_PATH, L"Indirect light intensity: %1.2f", g_globalControls.indirectLightIntensity );
-				g_globalHUD.GetStatic( IDC_INDIRECT_LIGHT_INTENSITY_STATIC )->SetText( str );
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_APPROX_LEVEL:
-			{
-				g_globalControls.approxLevel = g_globalHUD.GetSlider( IDC_APPROX_LEVEL )->GetValue();
-				swprintf_s( str, MAX_PATH, L"Approx level: %u", g_globalControls.approxLevel );
-				g_globalHUD.GetStatic( IDC_APPROX_LEVEL_STATIC )->SetText( str );
-			}
-			case IDC_DIRECT_LIGHT:
-			{
-				g_globalControls.enableDirectLight = g_globalHUD.GetCheckBox( IDC_DIRECT_LIGHT )->GetChecked();
-				break;
-			}
-			case IDC_INDIRECT_LIGHT:
-			{
-				g_globalControls.enableIndirectLight = g_globalHUD.GetCheckBox( IDC_INDIRECT_LIGHT )->GetChecked();
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_ENABLE_DIFFUSE_LIGHT:
-			{
-				g_globalControls.enableDiffuseLight = g_globalHUD.GetCheckBox( IDC_ENABLE_DIFFUSE_LIGHT )->GetChecked();
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_ENABLE_SPECULAR_LIGHT:
-			{
-				g_globalControls.enableSpecularLight = g_globalHUD.GetCheckBox( IDC_ENABLE_SPECULAR_LIGHT )->GetChecked();
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_ENABLE_SHADOW:
-			{
-				g_globalControls.enableShadow = g_globalHUD.GetCheckBox( IDC_ENABLE_SHADOW )->GetChecked();
-				break;
-			}
-			case IDC_EXPOSURE:
-			{
-				g_globalControls.exposure = g_globalHUD.GetSlider( IDC_EXPOSURE )->GetValue() / 20.0f;
-				swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_globalControls.exposure );
-				g_globalHUD.GetStatic( IDC_EXPOSURE_STATIC )->SetText( str );
-				break;
-			}
-			case IDC_DRAW_SKY:
-			{
-				g_globalControls.drawSky = g_globalHUD.GetCheckBox( IDC_DRAW_SKY )->GetChecked();
-				break;
-			}
-			case IDC_SELECT_SKY_TEXTURE:
-			{
-				g_globalControls.skyTexture = ( const wchar_t* )g_globalHUD.GetComboBox( IDC_SELECT_SKY_TEXTURE )->GetSelectedData();
-				if( g_onSkyTextureChangeCallback )
-					g_onSkyTextureChangeCallback();
-			}
-			case IDC_SCENE_TYPE:
-			{
-				g_globalControls.sceneType = ( SCENE_TYPE )PtrToUlong( g_globalHUD.GetComboBox( IDC_SCENE_TYPE )->GetSelectedData() );
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			// one sphere controls
-			case IDC_METALNESS:
-			{
-				g_oneSphereSceneControls.metalness = g_oneSphereHUD.GetSlider( IDC_METALNESS )->GetValue() / 100.0f;
-				swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_oneSphereSceneControls.metalness );
-				g_oneSphereHUD.GetStatic( IDC_METALNESS_STATIC )->SetText( str );
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_ROUGHNESS:
-			{
-				g_oneSphereSceneControls.roughness = g_oneSphereHUD.GetSlider( IDC_ROUGHNESS )->GetValue() / 100.0f;
-				swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_oneSphereSceneControls.roughness );
-				g_oneSphereHUD.GetStatic( IDC_ROUGHNESS_STATIC )->SetText( str );
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_REFLECTANCE:
-			{
-				g_oneSphereSceneControls.reflectance = g_oneSphereHUD.GetSlider( IDC_REFLECTANCE )->GetValue() / 100.0f;
-				swprintf_s( str, MAX_PATH, L"Reflectance: %1.2f", g_oneSphereSceneControls.reflectance );
-				g_oneSphereHUD.GetStatic( IDC_REFLECTANCE_STATIC )->SetText( str );
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_ALBEDO:
-			{
-				if( ChooseColor( g_oneSphereSceneControls.albedo ) )
-				{
-					if( g_onResetSampling )
-						g_onResetSampling();
-				}
-				break;
-			}
-			case IDC_USE_MATERIAL:
-			{
-				g_oneSphereSceneControls.useMaterial = g_oneSphereHUD.GetCheckBox( IDC_USE_MATERIAL )->GetChecked();
-				if( g_onResetSampling )
-					g_onResetSampling();
-				break;
-			}
-			case IDC_MATERIAL:
-			{
-				g_oneSphereSceneControls.material = ( const wchar_t* )g_oneSphereHUD.GetComboBox( IDC_MATERIAL )->GetSelectedData();
-				if( g_onMaterialChangeCallback )
-					g_onMaterialChangeCallback();
-				break;
-			}
-			// multiple sphere controls
-			case IDC_MS_ALBEDO:
-			{
-				if( ChooseColor( g_multipleSphereSceneControls.albedo ) )
-				{
-					if( g_onResetSampling )
-						g_onResetSampling();
-				}
-				break;
-			}
-			// sponza scene controls
-			case IDC_POINT_LIGHT_FLUX:
-			{
-				g_sponzaSceneControls.pointLightFlux = g_sponzaHUD.GetSlider( IDC_POINT_LIGHT_FLUX )->GetValue() / 5.0f;
-				swprintf_s( str, MAX_PATH, L"Point light flux( Watt ): %1.2f", g_sponzaSceneControls.pointLightFlux );
-				g_sponzaHUD.GetStatic( IDC_POINT_LIGHT_FLUX_STATIC )->SetText( str );
-				break;
-			}
-			case IDC_POINT_LIGHT_COLOR:
-			{
-				ChooseColor( g_sponzaSceneControls.pointLightColor );
-				break;
-			}
-		}
-	}
 }
 
 
 void UIInit()
 {
 	g_D3DSettingsDlg.Init( &g_DialogResourceManager );
-	g_globalHUD.Init( &g_DialogResourceManager );
-	g_globalHUD.SetCallback( OnGUIEvent );
-	g_oneSphereHUD.Init( &g_DialogResourceManager );
-	g_oneSphereHUD.SetCallback( OnGUIEvent );
-	g_multipleSphereHUD.Init( &g_DialogResourceManager );
-	g_multipleSphereHUD.SetCallback( OnGUIEvent );
-	g_sponzaHUD.Init( &g_DialogResourceManager );
-	g_sponzaHUD.SetCallback( OnGUIEvent );
-
-	int iY = 10;
-	g_globalHUD.AddButton( IDC_CHANGEDEVICE, L"Change device (F2)", 0, iY, HUD_WIDTH, 23, VK_F2 );
-	g_globalHUD.AddButton( IDC_RELOAD_SHADERS, L"Reload shaders (F3)", 0, iY += 25, HUD_WIDTH, 23, VK_F3 );
-
-	iY += 50;
-	WCHAR str[ MAX_PATH ];
-	swprintf_s( str, MAX_PATH, L"Light vert: %d", g_globalControls.lightDirVert );
-	g_globalHUD.AddStatic( IDC_LIGHTVERT_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_globalHUD.AddSlider( IDC_LIGHTVERT, 0, iY += 24, HUD_WIDTH, 22, 0, 180, g_globalControls.lightDirVert );
-
-	swprintf_s( str, MAX_PATH, L"Light hor: %d", g_globalControls.lightDirHor );
-	g_globalHUD.AddStatic( IDC_LIGHTHOR_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_globalHUD.AddSlider( IDC_LIGHTHOR, 0, iY += 24, HUD_WIDTH, 22, 0, 180, g_globalControls.lightDirHor );
-
-	swprintf_s( str, MAX_PATH, L"Light irradiance( W/m2 ): %1.2f", g_globalControls.lightIrradiance );
-	g_globalHUD.AddStatic( IDC_LIGHT_IRRADIANCE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_globalHUD.AddSlider( IDC_LIGHT_IRRADIANCE, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_globalControls.lightIrradiance * 5.0f ) );
-
-	g_globalHUD.AddButton( IDC_LIGHT_COLOR, L"Light color", 0, iY += 25, HUD_WIDTH, 23 );
-
-	swprintf_s( str, MAX_PATH, L"Indirect light intensity: %1.2f", g_globalControls.indirectLightIntensity );
-	g_globalHUD.AddStatic( IDC_INDIRECT_LIGHT_INTENSITY_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_globalHUD.AddSlider( IDC_INDIRECT_LIGHT_INTENSITY, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_globalControls.indirectLightIntensity * 50.0f ) );
-
-	swprintf_s( str, MAX_PATH, L"Approx level: %u", g_globalControls.approxLevel );
-	g_globalHUD.AddStatic( IDC_APPROX_LEVEL_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_globalHUD.AddSlider( IDC_APPROX_LEVEL, 0, iY += 24, HUD_WIDTH, 22, 0, 2, g_globalControls.approxLevel );
-
-	swprintf_s( str, MAX_PATH, L"Exposure: %1.2f", g_globalControls.exposure );
-	g_globalHUD.AddStatic( IDC_EXPOSURE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_globalHUD.AddSlider( IDC_EXPOSURE, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_globalControls.exposure * 20.0f ) );
-
-	swprintf_s( str, MAX_PATH, L"Draw sky" );
-	g_globalHUD.AddCheckBox( IDC_DRAW_SKY, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.drawSky );
-
-	CDXUTComboBox* skyTextureComboxBox;
-	g_globalHUD.AddComboBox( IDC_SELECT_SKY_TEXTURE, 0, iY += 24, HUD_WIDTH, 22, 0, false, &skyTextureComboxBox );
-	for( size_t i = 0; i < sizeof( g_skyTextureFiles ) / sizeof( wchar_t* ); i++ )
-		skyTextureComboxBox->AddItem( g_skyTextureFiles[ i ], ( void* )g_skyTextureFiles[ i ] );
 	g_globalControls.skyTexture = g_skyTextureFiles[ 0 ];
-
-	swprintf_s( str, MAX_PATH, L"Enable direct light" );
-	g_globalHUD.AddCheckBox( IDC_DIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableDirectLight );
-
-	swprintf_s( str, MAX_PATH, L"Enable indirect light" );
-	g_globalHUD.AddCheckBox( IDC_INDIRECT_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableIndirectLight );
-
-	swprintf_s( str, MAX_PATH, L"Enable diffuse light" );
-	g_globalHUD.AddCheckBox( IDC_ENABLE_DIFFUSE_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableDiffuseLight );
-
-	swprintf_s( str, MAX_PATH, L"Enable specular light" );
-	g_globalHUD.AddCheckBox( IDC_ENABLE_SPECULAR_LIGHT, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableSpecularLight );
-
-	swprintf_s( str, MAX_PATH, L"Enable shadow" );
-	g_globalHUD.AddCheckBox( IDC_ENABLE_SHADOW, str, 0, iY += 24, HUD_WIDTH, 22, g_globalControls.enableShadow );
-
-	CDXUTComboBox* sceneComboBox;
-	g_globalHUD.AddComboBox( IDC_SCENE_TYPE, 0, iY += 24, HUD_WIDTH, 22, 0, false, &sceneComboBox );
-	sceneComboBox->AddItem( L"One sphere", ULongToPtr( SCENE_ONE_SPHERE ) );
-	sceneComboBox->AddItem( L"Multiple spheres", ULongToPtr( SCENE_MULTIPLE_SPHERES ) );
-	sceneComboBox->AddItem( L"Sponza", ULongToPtr( SCENE_SPONZA ) );
-
-	g_globalHUDHeight = iY;
-
-	//
-	iY = 0;
-	swprintf_s( str, MAX_PATH, L"Metalness: %1.2f", g_oneSphereSceneControls.metalness );
-	g_oneSphereHUD.AddStatic( IDC_METALNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_oneSphereHUD.AddSlider( IDC_METALNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_oneSphereSceneControls.metalness * 100.0f ) );
-
-	swprintf_s( str, MAX_PATH, L"Roughness: %1.2f", g_oneSphereSceneControls.roughness );
-	g_oneSphereHUD.AddStatic( IDC_ROUGHNESS_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_oneSphereHUD.AddSlider( IDC_ROUGHNESS, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_oneSphereSceneControls.roughness * 100.0f ) );
-
-	swprintf_s( str, MAX_PATH, L"Reflectance: %1.2f", g_oneSphereSceneControls.reflectance );
-	g_oneSphereHUD.AddStatic( IDC_REFLECTANCE_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_oneSphereHUD.AddSlider( IDC_REFLECTANCE, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_oneSphereSceneControls.reflectance * 100.0f ) );
-
-	g_oneSphereHUD.AddButton( IDC_ALBEDO, L"Albedo", 0, iY += 25, HUD_WIDTH, 23 );
-
-	swprintf_s( str, MAX_PATH, L"Use material" );
-	g_oneSphereHUD.AddCheckBox( IDC_USE_MATERIAL, str, 0, iY += 24, HUD_WIDTH, 22, g_oneSphereSceneControls.useMaterial );
-
-	CDXUTComboBox* materialComboxBox;
-	g_oneSphereHUD.AddComboBox( IDC_MATERIAL, 0, iY += 24, HUD_WIDTH, 22, 0, false, &materialComboxBox );
-	for( size_t i = 0; i < sizeof( g_materials ) / sizeof( wchar_t* ); i++ )
-		materialComboxBox->AddItem( g_materials[ i ], ( void* )g_materials[ i ] );
-
-	g_oneSphereHUDHeight = iY;
-
-	//
-	iY = 0;
-	g_multipleSphereHUD.AddButton( IDC_MS_ALBEDO, L"Albedo", 0, iY += 25, HUD_WIDTH, 23 );
-	g_multipleSphereHUDHeight = iY;
-
-	//
-	iY = 0;
-	swprintf_s( str, MAX_PATH, L"Point light flux( Watt ): %1.2f", g_sponzaSceneControls.pointLightFlux );
-	g_sponzaHUD.AddStatic( IDC_POINT_LIGHT_FLUX_STATIC, str, 0, iY += 24, HUD_WIDTH, 22 );
-	g_sponzaHUD.AddSlider( IDC_POINT_LIGHT_FLUX, 0, iY += 24, HUD_WIDTH, 22, 0, 100, ( int )( g_sponzaSceneControls.pointLightFlux * 5.0f ) );
-	g_sponzaHUD.AddButton( IDC_POINT_LIGHT_COLOR, L"Point light color", 0, iY += 25, HUD_WIDTH, 23 );
-	g_sponzaHUDHeight = iY;
 }
 
 
@@ -465,18 +107,6 @@ HRESULT UIOnResizedSwapChain( ID3D11Device* pd3dDevice, const DXGI_SURFACE_DESC*
 	V_RETURN( g_DialogResourceManager.OnD3D11ResizedSwapChain( pd3dDevice, pBackBufferSurfaceDesc ) );
 	V_RETURN( g_D3DSettingsDlg.OnD3D11ResizedSwapChain( pd3dDevice, pBackBufferSurfaceDesc ) );
 
-	g_globalHUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, 0 );
-	g_globalHUD.SetSize( HUD_WIDTH, g_globalHUDHeight );
-
-	g_oneSphereHUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, g_globalHUDHeight + 50 );
-	g_oneSphereHUD.SetSize( HUD_WIDTH, g_oneSphereHUDHeight );
-
-	g_multipleSphereHUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, g_globalHUDHeight + 50 );
-	g_multipleSphereHUD.SetSize( HUD_WIDTH, g_multipleSphereHUDHeight );
-
-	g_sponzaHUD.SetLocation( pBackBufferSurfaceDesc->Width - HUD_WIDTH - 10, g_globalHUDHeight + 50 );
-	g_sponzaHUD.SetSize( HUD_WIDTH, g_sponzaHUDHeight );
-
 	return S_OK;
 }
 
@@ -499,7 +129,6 @@ void UIOnDestroyDevice()
 
 bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFurtherProcessing, void* pUserContext )
 {
-	ImGui_ImplWin32_WndProcHandler( hWnd, uMsg, wParam, lParam );
 	// Pass messages to dialog resource manager calls so GUI state is updated correctly
 	*pbNoFurtherProcessing = g_DialogResourceManager.MsgProc( hWnd, uMsg, wParam, lParam );
 	if( *pbNoFurtherProcessing )
@@ -512,27 +141,11 @@ bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFu
 		return false;
 	}
 
-	// Give the dialogs a chance to handle the message first
-	*pbNoFurtherProcessing = g_globalHUD.MsgProc( hWnd, uMsg, wParam, lParam );
-	if( *pbNoFurtherProcessing )
-		return false;
-
-	if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
+	ImGui_ImplWin32_WndProcHandler( hWnd, uMsg, wParam, lParam );
+	if( ImGui::GetCurrentContext() )
 	{
-		*pbNoFurtherProcessing = g_oneSphereHUD.MsgProc( hWnd, uMsg, wParam, lParam );
-		if( *pbNoFurtherProcessing )
-			return false;
-	}
-	else if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
-	{
-		*pbNoFurtherProcessing = g_multipleSphereHUD.MsgProc( hWnd, uMsg, wParam, lParam );
-		if( *pbNoFurtherProcessing )
-			return false;
-	}
-	else if( g_globalControls.sceneType == SCENE_SPONZA )
-	{
-		*pbNoFurtherProcessing = g_sponzaHUD.MsgProc( hWnd, uMsg, wParam, lParam );
-		if( *pbNoFurtherProcessing )
+		ImGuiIO& io = ImGui::GetIO();
+		if( io.WantCaptureMouse || io.WantCaptureKeyboard )
 			return false;
 	}
 
@@ -547,6 +160,108 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 	static bool my_tool_active = true;
 	// Create a window called "My First Tool", with a menu bar.
 	ImGui::Begin( "My First Tool", &my_tool_active, ImGuiWindowFlags_MenuBar );
+	if( ImGui::Button( "Change device" ) )
+		g_D3DSettingsDlg.SetActive( !g_D3DSettingsDlg.IsActive() );
+	if( ImGui::Button( "Reload shaders" ) )
+	{
+		if( g_onShaderReload )
+			g_onShaderReload();
+	}
+	ImGui::SliderFloat( "Light vertical angle", &g_globalControls.lightDirVert, 0.0f, 180.0f );
+	ImGui::SliderFloat( "Light horizontal angle", &g_globalControls.lightDirHor, 0.0f, 180.0f );
+	ImGui::SliderFloat( "Light irradiance( W/m2 )", &g_globalControls.lightIrradiance, 0.0f, 20.0f );
+	if( ImGui::Button( "Light color" ) )
+		ChooseColor( g_globalControls.lightColor );
+	if( ImGui::SliderFloat( "Indirect light intensity", &g_globalControls.indirectLightIntensity, 0.0f, 20.0f ) )
+		g_onResetSampling();
+	ImGui::SliderInt( "Approximation level", &g_globalControls.approxLevel, 0, 2 );
+	ImGui::SliderFloat( "Exposure", &g_globalControls.exposure, 0.0f, 5.0f );
+	ImGui::Checkbox( "Draw sky", &g_globalControls.drawSky );
+	{
+		g_globalControls.skyTexture = g_skyTextureFiles[ 0 ];
+		if( ImGui::BeginCombo( "Sky texture", g_globalControls.skyTexture ) ) // The second parameter is the label previewed before opening the combo.
+		{
+			for( int n = 0; n < IM_ARRAYSIZE( g_skyTextureFiles ); n++ )
+			{
+				bool is_selected = ( g_globalControls.skyTexture == g_skyTextureFiles[ n ] ); // You can store your selection however you want, outside or inside your objects
+				if( ImGui::Selectable( g_skyTextureFiles[ n ], is_selected ) )
+				{
+					g_globalControls.skyTexture = g_skyTextureFiles[ n ];
+					g_onSkyTextureChangeCallback();
+				}
+				if( is_selected )
+					ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
+			}
+			ImGui::EndCombo();
+		}
+	}
+	ImGui::Checkbox( "Enable direct light", &g_globalControls.enableDirectLight );
+	if( ImGui::Checkbox( "Enable indirect light", &g_globalControls.enableIndirectLight ) )
+		g_onResetSampling();
+	if( ImGui::Checkbox( "Enable diffuse light", &g_globalControls.enableDiffuseLight ) )
+		g_onResetSampling();
+	if( ImGui::Checkbox( "Enable specular light", &g_globalControls.enableSpecularLight ) )
+		g_onResetSampling();
+	ImGui::Checkbox( "Enable shadow", &g_globalControls.enableShadow );
+	if( ImGui::Combo( "combo", ( int *)&g_globalControls.sceneType, "One sphere\0Multiple spheres\0Sponza\0\0" ) )
+		g_onResetSampling();
+
+	if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
+	{
+		if( ImGui::Checkbox( "Use Material", &g_oneSphereSceneControls.useMaterial ) )
+			g_onResetSampling();
+
+		if( g_oneSphereSceneControls.useMaterial )
+		{
+			g_oneSphereSceneControls.material = g_materials[ 0 ];
+			if( ImGui::BeginCombo( "Material", g_oneSphereSceneControls.material ) ) // The second parameter is the label previewed before opening the combo.
+			{
+				for( int n = 0; n < IM_ARRAYSIZE( g_materials ); n++ )
+				{
+					bool is_selected = ( g_oneSphereSceneControls.material == g_materials[ n ] ); // You can store your selection however you want, outside or inside your objects
+					if( ImGui::Selectable( g_materials[ n ], is_selected ) )
+					{
+						g_oneSphereSceneControls.material = g_materials[ n ];
+						g_onMaterialChangeCallback();
+					}
+					if( is_selected )
+						ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
+				}
+				ImGui::EndCombo();
+			}
+		}
+		else
+		{
+			if( ImGui::SliderFloat( "Metalness", &g_oneSphereSceneControls.metalness, 0.0f, 1.0f ) )
+				g_onResetSampling();
+			if( ImGui::SliderFloat( "Roughness", &g_oneSphereSceneControls.roughness, 0.0f, 1.0f ) )
+				g_onResetSampling();
+			if( ImGui::SliderFloat( "Reflectance", &g_oneSphereSceneControls.reflectance, 0.0f, 1.0f ) )
+				g_onResetSampling();
+			if( ImGui::Button( "Albedo" ) )
+			{
+				if( ChooseColor( g_oneSphereSceneControls.albedo ) )
+					g_onResetSampling();
+			}
+		}
+	}
+
+	if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
+	{
+		if( ImGui::Button( "Albedo" ) )
+		{
+			if( ChooseColor( g_multipleSphereSceneControls.albedo ) )
+				g_onResetSampling();
+		}
+	}
+
+	if( g_globalControls.sceneType == SCENE_SPONZA )
+	{
+		ImGui::SliderFloat( "Point light flux( Watt )", &g_sponzaSceneControls.pointLightFlux, 0.0f, 5.0f );
+		if( ImGui::Button( "Point light color" ) )
+			ChooseColor( g_sponzaSceneControls.pointLightColor );
+	}
+#if 0
 	if( ImGui::BeginMenuBar() )
 	{
 		if( ImGui::BeginMenu( "File" ) )
@@ -572,19 +287,13 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 	for( int n = 0; n < 50; n++ )
 		ImGui::Text( "%04d: Some text", n );
 	ImGui::EndChild();
+#endif
 	ImGui::End();
-
 	ImGui::Render();
-	ImGui_ImplDX11_RenderDrawData( ImGui::GetDrawData() );
 
 	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"HUD / Stats" );
-	g_globalHUD.OnRender( fElapsedTime );
-	if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
-		g_oneSphereHUD.OnRender( fElapsedTime );
-	else if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
-		g_multipleSphereHUD.OnRender( fElapsedTime );
-	else if( g_globalControls.sceneType == SCENE_SPONZA )
-		g_sponzaHUD.OnRender( fElapsedTime );
+	ImGui_ImplDX11_RenderDrawData( ImGui::GetDrawData() );
+
 	g_pTxtHelper->Begin();
 	g_pTxtHelper->SetInsertionPos( 2, 0 );
 	g_pTxtHelper->SetForegroundColor( Colors::Yellow );
