@@ -23,6 +23,8 @@ struct GlobalControls
 	float lightDirVert			= 45.0f;
 	float lightDirHor			= 130.0f;
 	float lightIrradiance		= 1.0f;
+	int samplesCount			= 128;
+	int samplesPerFrame			= 16;
 	DirectX::XMVECTOR lightColor = DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 	float indirectLightIntensity = 1.0f;
 	int approxLevel				= 0;

@@ -73,11 +73,9 @@ MERLMaterial						g_merlMaterial;
 
 // Image base lighting importance sampling stuff
 UINT g_frameIdx = 0;
-UINT g_samplesProcessed = 0;
+int g_samplesProcessed = 0;
 bool g_resetSampling = false;
 XMMATRIX g_lastFrameViewProj;
-const UINT TotalSamples = 128;
-const UINT SamplesInStep = 16;
 const UINT SHADOW_MAP_RESOLUTION = 2048;
 
 
@@ -443,8 +441,8 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 		DXUT_EndPerfEvent();
 	}
 
-	if( g_samplesProcessed < TotalSamples )
-		g_samplesProcessed += SamplesInStep;
+	if( g_samplesProcessed < GetGlobalControls().samplesCount )
+		g_samplesProcessed += GetGlobalControls().samplesPerFrame;
 }
 
 
@@ -499,8 +497,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		g_cachedGlobalParams.IndirectLightIntensity = GetGlobalControls().indirectLightIntensity;
 		g_cachedGlobalParams.ApproxLevel = GetGlobalControls().approxLevel;
 		g_cachedGlobalParams.FrameIdx = g_frameIdx;
-		g_cachedGlobalParams.TotalSamples = TotalSamples;
-		g_cachedGlobalParams.SamplesInStep = SamplesInStep;
+		g_cachedGlobalParams.TotalSamples = GetGlobalControls().samplesCount;
+		g_cachedGlobalParams.SamplesInStep = GetGlobalControls().samplesPerFrame;
 		g_cachedGlobalParams.SamplesProcessed = g_samplesProcessed;
 		g_cachedGlobalParams.EnableDirectLight = GetGlobalControls().enableDirectLight;
 		g_cachedGlobalParams.EnableIndirectLight = GetGlobalControls().enableIndirectLight;
@@ -529,7 +527,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	wchar_t debugStr[ debugStrLen ];
 	memset( debugStr, 0, debugStrLen * sizeof( wchar_t ) );
 	XMVECTOR p = currentCamera->GetEyePt();
-	swprintf_s( debugStr, L"Camera position: %1.2f %1.2f %1.2f", p.m128_f32[ 0 ], p.m128_f32[ 1 ], p.m128_f32[ 2 ] );
+	swprintf_s( debugStr, L"Camera position: %1.2f %1.2f %1.2f\nSamples processed: %d", p.m128_f32[ 0 ], p.m128_f32[ 1 ], p.m128_f32[ 2 ], g_samplesProcessed );
 	UIRender( pd3dDevice, pd3dImmediateContext, fElapsedTime, debugStr );
 }
 

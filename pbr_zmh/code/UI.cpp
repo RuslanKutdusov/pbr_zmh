@@ -98,6 +98,39 @@ namespace
 
 		FindClose( hFind );
 	}
+
+
+	void SamplesCountCombo( const char* label, int& samplesCount, int maxSamples )
+	{
+		const int samplesCountArr[] = { 16, 32, 64, 128, 256, 512, 1024, 1536, 2048 };
+		const char* samplesCountStrArr[] = { "16", "32", "64", "128", "256", "512", "1024", "1536", "2048" };
+		const int arrSize = IM_ARRAYSIZE( samplesCountArr );
+		int idx = 0;
+		for( ; idx < arrSize; idx++ )
+			if( samplesCountArr[ idx ] == samplesCount )
+				break;
+
+		int maxIdx = 0;
+		for( ; maxIdx < arrSize; maxIdx++ )
+			if( samplesCountArr[ maxIdx ] == maxSamples )
+				break;
+
+		if( ImGui::BeginCombo( label, samplesCountStrArr[ idx ] ) )
+		{
+			for( int n = 0; n <= maxIdx; n++ )
+			{
+				bool is_selected = idx == n;
+				if( ImGui::Selectable( samplesCountStrArr[ n ], is_selected ) )
+				{
+					samplesCount = samplesCountArr[ n ];
+					g_onResetSampling();
+				}
+				if( is_selected )
+					ImGui::SetItemDefaultFocus();
+			}
+			ImGui::EndCombo();
+		}
+	}
 }
 
 
@@ -211,6 +244,15 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 		ImGui::SliderFloat( "Light irradiance( W/m2 )", &g_globalControls.lightIrradiance, 0.0f, 20.0f );
 		if( ImGui::Button( "Light color" ) )
 			ChooseColor( g_globalControls.lightColor );
+
+		SamplesCountCombo( "Samples count", g_globalControls.samplesCount, 2048 );
+		SamplesCountCombo( "Samples per frame", g_globalControls.samplesPerFrame, g_globalControls.samplesCount );
+		if( g_globalControls.samplesPerFrame > g_globalControls.samplesCount )
+		{
+			g_globalControls.samplesPerFrame = g_globalControls.samplesCount;
+			g_onResetSampling();
+		}
+
 		if( ImGui::SliderFloat( "Indirect light intensity", &g_globalControls.indirectLightIntensity, 0.0f, 20.0f ) )
 			g_onResetSampling();
 		ImGui::SliderInt( "Approximation level", &g_globalControls.approxLevel, 0, 2 );
