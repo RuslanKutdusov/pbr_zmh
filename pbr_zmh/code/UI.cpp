@@ -207,7 +207,7 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 
 	if( ImGui::CollapsingHeader( "Scene controls", ImGuiTreeNodeFlags_DefaultOpen ) )
 	{
-		if( ImGui::Combo( "combo", ( int * )&g_globalControls.sceneType, "One sphere\0Multiple spheres\0Sponza\0\0" ) )
+		if( ImGui::Combo( "Scene", ( int * )&g_globalControls.sceneType, "One sphere\0Multiple spheres\0Sponza\0\0" ) )
 			g_onResetSampling();
 
 		if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
