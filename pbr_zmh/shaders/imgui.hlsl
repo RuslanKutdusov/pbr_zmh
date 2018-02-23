@@ -1,6 +1,3 @@
-#include "global.h"
-#include "lighting.h"
-
 Texture2D Texture : register( t0 );
 
 

@@ -158,71 +158,36 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 	ImGui_ImplDX11_NewFrame();
 
 	static bool my_tool_active = true;
-	// Create a window called "My First Tool", with a menu bar.
-	ImGui::Begin( "My First Tool", &my_tool_active, ImGuiWindowFlags_MenuBar );
-	if( ImGui::Button( "Change device" ) )
-		g_D3DSettingsDlg.SetActive( !g_D3DSettingsDlg.IsActive() );
-	if( ImGui::Button( "Reload shaders" ) )
+	ImGui::Begin( "Controls", &my_tool_active, ImGuiWindowFlags_NoTitleBar );
+	if( ImGui::CollapsingHeader( "Global controls", ImGuiTreeNodeFlags_DefaultOpen ) )
 	{
-		if( g_onShaderReload )
-			g_onShaderReload();
-	}
-	ImGui::SliderFloat( "Light vertical angle", &g_globalControls.lightDirVert, 0.0f, 180.0f );
-	ImGui::SliderFloat( "Light horizontal angle", &g_globalControls.lightDirHor, 0.0f, 180.0f );
-	ImGui::SliderFloat( "Light irradiance( W/m2 )", &g_globalControls.lightIrradiance, 0.0f, 20.0f );
-	if( ImGui::Button( "Light color" ) )
-		ChooseColor( g_globalControls.lightColor );
-	if( ImGui::SliderFloat( "Indirect light intensity", &g_globalControls.indirectLightIntensity, 0.0f, 20.0f ) )
-		g_onResetSampling();
-	ImGui::SliderInt( "Approximation level", &g_globalControls.approxLevel, 0, 2 );
-	ImGui::SliderFloat( "Exposure", &g_globalControls.exposure, 0.0f, 5.0f );
-	ImGui::Checkbox( "Draw sky", &g_globalControls.drawSky );
-	{
-		g_globalControls.skyTexture = g_skyTextureFiles[ 0 ];
-		if( ImGui::BeginCombo( "Sky texture", g_globalControls.skyTexture ) ) // The second parameter is the label previewed before opening the combo.
+		if( ImGui::Button( "Change device" ) )
+			g_D3DSettingsDlg.SetActive( !g_D3DSettingsDlg.IsActive() );
+		if( ImGui::Button( "Reload shaders" ) )
 		{
-			for( int n = 0; n < IM_ARRAYSIZE( g_skyTextureFiles ); n++ )
-			{
-				bool is_selected = ( g_globalControls.skyTexture == g_skyTextureFiles[ n ] ); // You can store your selection however you want, outside or inside your objects
-				if( ImGui::Selectable( g_skyTextureFiles[ n ], is_selected ) )
-				{
-					g_globalControls.skyTexture = g_skyTextureFiles[ n ];
-					g_onSkyTextureChangeCallback();
-				}
-				if( is_selected )
-					ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
-			}
-			ImGui::EndCombo();
+			if( g_onShaderReload )
+				g_onShaderReload();
 		}
-	}
-	ImGui::Checkbox( "Enable direct light", &g_globalControls.enableDirectLight );
-	if( ImGui::Checkbox( "Enable indirect light", &g_globalControls.enableIndirectLight ) )
-		g_onResetSampling();
-	if( ImGui::Checkbox( "Enable diffuse light", &g_globalControls.enableDiffuseLight ) )
-		g_onResetSampling();
-	if( ImGui::Checkbox( "Enable specular light", &g_globalControls.enableSpecularLight ) )
-		g_onResetSampling();
-	ImGui::Checkbox( "Enable shadow", &g_globalControls.enableShadow );
-	if( ImGui::Combo( "combo", ( int *)&g_globalControls.sceneType, "One sphere\0Multiple spheres\0Sponza\0\0" ) )
-		g_onResetSampling();
-
-	if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
-	{
-		if( ImGui::Checkbox( "Use Material", &g_oneSphereSceneControls.useMaterial ) )
+		ImGui::SliderFloat( "Light vertical angle", &g_globalControls.lightDirVert, 0.0f, 180.0f );
+		ImGui::SliderFloat( "Light horizontal angle", &g_globalControls.lightDirHor, 0.0f, 180.0f );
+		ImGui::SliderFloat( "Light irradiance( W/m2 )", &g_globalControls.lightIrradiance, 0.0f, 20.0f );
+		if( ImGui::Button( "Light color" ) )
+			ChooseColor( g_globalControls.lightColor );
+		if( ImGui::SliderFloat( "Indirect light intensity", &g_globalControls.indirectLightIntensity, 0.0f, 20.0f ) )
 			g_onResetSampling();
-
-		if( g_oneSphereSceneControls.useMaterial )
+		ImGui::SliderInt( "Approximation level", &g_globalControls.approxLevel, 0, 2 );
+		ImGui::SliderFloat( "Exposure", &g_globalControls.exposure, 0.0f, 5.0f );
+		ImGui::Checkbox( "Draw sky", &g_globalControls.drawSky );
 		{
-			g_oneSphereSceneControls.material = g_materials[ 0 ];
-			if( ImGui::BeginCombo( "Material", g_oneSphereSceneControls.material ) ) // The second parameter is the label previewed before opening the combo.
+			if( ImGui::BeginCombo( "Sky texture", g_globalControls.skyTexture ) ) // The second parameter is the label previewed before opening the combo.
 			{
-				for( int n = 0; n < IM_ARRAYSIZE( g_materials ); n++ )
+				for( int n = 0; n < IM_ARRAYSIZE( g_skyTextureFiles ); n++ )
 				{
-					bool is_selected = ( g_oneSphereSceneControls.material == g_materials[ n ] ); // You can store your selection however you want, outside or inside your objects
-					if( ImGui::Selectable( g_materials[ n ], is_selected ) )
+					bool is_selected = ( g_globalControls.skyTexture == g_skyTextureFiles[ n ] ); // You can store your selection however you want, outside or inside your objects
+					if( ImGui::Selectable( g_skyTextureFiles[ n ], is_selected ) )
 					{
-						g_oneSphereSceneControls.material = g_materials[ n ];
-						g_onMaterialChangeCallback();
+						g_globalControls.skyTexture = g_skyTextureFiles[ n ];
+						g_onSkyTextureChangeCallback();
 					}
 					if( is_selected )
 						ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
@@ -230,64 +195,76 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 				ImGui::EndCombo();
 			}
 		}
-		else
+		ImGui::Checkbox( "Enable direct light", &g_globalControls.enableDirectLight );
+		if( ImGui::Checkbox( "Enable indirect light", &g_globalControls.enableIndirectLight ) )
+			g_onResetSampling();
+		if( ImGui::Checkbox( "Enable diffuse light", &g_globalControls.enableDiffuseLight ) )
+			g_onResetSampling();
+		if( ImGui::Checkbox( "Enable specular light", &g_globalControls.enableSpecularLight ) )
+			g_onResetSampling();
+		ImGui::Checkbox( "Enable shadow", &g_globalControls.enableShadow );
+	}
+
+	if( ImGui::CollapsingHeader( "Scene controls", ImGuiTreeNodeFlags_DefaultOpen ) )
+	{
+		if( ImGui::Combo( "combo", ( int * )&g_globalControls.sceneType, "One sphere\0Multiple spheres\0Sponza\0\0" ) )
+			g_onResetSampling();
+
+		if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
 		{
-			if( ImGui::SliderFloat( "Metalness", &g_oneSphereSceneControls.metalness, 0.0f, 1.0f ) )
+			if( ImGui::Checkbox( "Use Material", &g_oneSphereSceneControls.useMaterial ) )
 				g_onResetSampling();
-			if( ImGui::SliderFloat( "Roughness", &g_oneSphereSceneControls.roughness, 0.0f, 1.0f ) )
-				g_onResetSampling();
-			if( ImGui::SliderFloat( "Reflectance", &g_oneSphereSceneControls.reflectance, 0.0f, 1.0f ) )
-				g_onResetSampling();
+
+			if( g_oneSphereSceneControls.useMaterial )
+			{
+				if( ImGui::BeginCombo( "Material", g_oneSphereSceneControls.material ) ) // The second parameter is the label previewed before opening the combo.
+				{
+					for( int n = 0; n < IM_ARRAYSIZE( g_materials ); n++ )
+					{
+						bool is_selected = ( g_oneSphereSceneControls.material == g_materials[ n ] ); // You can store your selection however you want, outside or inside your objects
+						if( ImGui::Selectable( g_materials[ n ], is_selected ) )
+						{
+							g_oneSphereSceneControls.material = g_materials[ n ];
+							g_onMaterialChangeCallback();
+						}
+						if( is_selected )
+							ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
+					}
+					ImGui::EndCombo();
+				}
+			}
+			else
+			{
+				if( ImGui::SliderFloat( "Metalness", &g_oneSphereSceneControls.metalness, 0.0f, 1.0f ) )
+					g_onResetSampling();
+				if( ImGui::SliderFloat( "Roughness", &g_oneSphereSceneControls.roughness, 0.0f, 1.0f ) )
+					g_onResetSampling();
+				if( ImGui::SliderFloat( "Reflectance", &g_oneSphereSceneControls.reflectance, 0.0f, 1.0f ) )
+					g_onResetSampling();
+				if( ImGui::Button( "Albedo" ) )
+				{
+					if( ChooseColor( g_oneSphereSceneControls.albedo ) )
+						g_onResetSampling();
+				}
+			}
+		}
+
+		if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
+		{
 			if( ImGui::Button( "Albedo" ) )
 			{
-				if( ChooseColor( g_oneSphereSceneControls.albedo ) )
+				if( ChooseColor( g_multipleSphereSceneControls.albedo ) )
 					g_onResetSampling();
 			}
 		}
-	}
 
-	if( g_globalControls.sceneType == SCENE_MULTIPLE_SPHERES )
-	{
-		if( ImGui::Button( "Albedo" ) )
+		if( g_globalControls.sceneType == SCENE_SPONZA )
 		{
-			if( ChooseColor( g_multipleSphereSceneControls.albedo ) )
-				g_onResetSampling();
+			ImGui::SliderFloat( "Point light flux( Watt )", &g_sponzaSceneControls.pointLightFlux, 0.0f, 5.0f );
+			if( ImGui::Button( "Point light color" ) )
+				ChooseColor( g_sponzaSceneControls.pointLightColor );
 		}
 	}
-
-	if( g_globalControls.sceneType == SCENE_SPONZA )
-	{
-		ImGui::SliderFloat( "Point light flux( Watt )", &g_sponzaSceneControls.pointLightFlux, 0.0f, 5.0f );
-		if( ImGui::Button( "Point light color" ) )
-			ChooseColor( g_sponzaSceneControls.pointLightColor );
-	}
-#if 0
-	if( ImGui::BeginMenuBar() )
-	{
-		if( ImGui::BeginMenu( "File" ) )
-		{
-			if( ImGui::MenuItem( "Open..", "Ctrl+O" ) ) { /* Do stuff */ }
-			if( ImGui::MenuItem( "Save", "Ctrl+S" ) ) { /* Do stuff */ }
-			if( ImGui::MenuItem( "Close", "Ctrl+W" ) ) { my_tool_active = false; }
-			ImGui::EndMenu();
-		}
-		ImGui::EndMenuBar();
-	}
-
-	// Edit a color (stored as ~4 floats)
-	//ImGui::ColorEdit4( "Color", my_color );
-
-	// Plot some values
-	const float my_values[] = { 0.2f, 0.1f, 1.0f, 0.5f, 0.9f, 2.2f };
-	ImGui::PlotLines( "Frame Times", my_values, IM_ARRAYSIZE( my_values ) );
-
-	// Display contents in a scrolling region
-	ImGui::TextColored( ImVec4( 1, 1, 0, 1 ), "Important Stuff" );
-	ImGui::BeginChild( "Scrolling" );
-	for( int n = 0; n < 50; n++ )
-		ImGui::Text( "%04d: Some text", n );
-	ImGui::EndChild();
-#endif
 	ImGui::End();
 	ImGui::Render();
 

@@ -513,7 +513,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	}
 
 	BakeCubeMap( pd3dImmediateContext );
-	PrefilterEnvMap( pd3dImmediateContext );
+	//PrefilterEnvMap( pd3dImmediateContext );
 	RenderScene( pd3dImmediateContext, ( float )fTime );	
 
 	//
