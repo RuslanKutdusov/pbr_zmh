@@ -201,6 +201,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="code\Helpers.cpp" />
+    <ClCompile Include="code\imgui\imgui.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="code\imgui\imgui_demo.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="code\imgui\imgui_draw.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="code\imgui\imgui_impl_dx11.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="code\Material.cpp" />
     <ClCompile Include="code\Model.cpp" />
     <ClCompile Include="code\pbr_zmh.cpp">
@@ -226,6 +242,13 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="code\Helpers.h" />
+    <ClInclude Include="code\imgui\imconfig.h" />
+    <ClInclude Include="code\imgui\imgui.h" />
+    <ClInclude Include="code\imgui\imgui_impl_dx11.h" />
+    <ClInclude Include="code\imgui\imgui_internal.h" />
+    <ClInclude Include="code\imgui\stb_rect_pack.h" />
+    <ClInclude Include="code\imgui\stb_textedit.h" />
+    <ClInclude Include="code\imgui\stb_truetype.h" />
     <ClInclude Include="code\Material.h" />
     <ClInclude Include="code\Model.h" />
     <ClInclude Include="code\PostProcess.h" />

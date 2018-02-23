@@ -1,5 +1,6 @@
 #include "Precompiled.h"
 #include "resource.h"
+#include "imgui/imgui.h"
 
 #define GLOBAL_PARAMS_CB 0
 #define PREFILTERED_DIFF_ENV_MAP 123
@@ -107,7 +108,7 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	HRESULT hr;
 
 	auto pd3dImmediateContext = DXUTGetD3D11DeviceContext();
-	V_RETURN( UIOnDeviceCreate( pd3dDevice, pd3dImmediateContext ) );
+	V_RETURN( UIOnDeviceCreate( DXUTGetHWND(), pd3dDevice, pd3dImmediateContext ) );
 
 	D3D11_BUFFER_DESC Desc;
 	Desc.Usage = D3D11_USAGE_DYNAMIC;

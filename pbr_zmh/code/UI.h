@@ -55,7 +55,7 @@ struct SponzaSceneControls
 
 
 void UIInit();
-HRESULT UIOnDeviceCreate( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext );
+HRESULT UIOnDeviceCreate( HWND hwnd, ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext );
 HRESULT UIOnResizedSwapChain( ID3D11Device* pd3dDevice, const DXGI_SURFACE_DESC* pBackBufferSurfaceDesc );
 void UIOnReleasingSwapChain();
 void UIOnDestroyDevice();

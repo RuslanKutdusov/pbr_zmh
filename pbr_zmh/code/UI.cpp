@@ -1,5 +1,6 @@
 #include "Precompiled.h"
-
+#include "imgui\imgui.h"
+#include "imgui\imgui_impl_dx11.h"
 
 using namespace DirectX;
 
@@ -439,13 +440,19 @@ void UIInit()
 }
 
 
-HRESULT UIOnDeviceCreate( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext )
+HRESULT UIOnDeviceCreate( HWND hwnd, ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext )
 {
 	HRESULT hr = S_OK;
 
 	V_RETURN( g_DialogResourceManager.OnD3D11CreateDevice( pd3dDevice, pd3dImmediateContext ) );
 	V_RETURN( g_D3DSettingsDlg.OnD3D11CreateDevice( pd3dDevice ) );
 	g_pTxtHelper = new CDXUTTextHelper( pd3dDevice, pd3dImmediateContext, &g_DialogResourceManager, 15 );
+
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.DisplaySize.x = 1920.0f;
+	io.DisplaySize.y = 1280.0f;
+	ImGui_ImplDX11_Init( hwnd, pd3dDevice, pd3dImmediateContext );
 
 	return S_OK;
 }
@@ -485,11 +492,14 @@ void UIOnDestroyDevice()
 	g_DialogResourceManager.OnD3D11DestroyDevice();
 	g_D3DSettingsDlg.OnD3D11DestroyDevice();
 	SAFE_DELETE( g_pTxtHelper );
+	ImGui_ImplDX11_Shutdown();
+	ImGui::DestroyContext();
 }
 
 
 bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFurtherProcessing, void* pUserContext )
 {
+	ImGui_ImplWin32_WndProcHandler( hWnd, uMsg, wParam, lParam );
 	// Pass messages to dialog resource manager calls so GUI state is updated correctly
 	*pbNoFurtherProcessing = g_DialogResourceManager.MsgProc( hWnd, uMsg, wParam, lParam );
 	if( *pbNoFurtherProcessing )
@@ -532,6 +542,41 @@ bool UIMsgProc( HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, bool* pbNoFu
 
 void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext, float fElapsedTime, const wchar_t* debugStr )
 {
+	ImGui_ImplDX11_NewFrame();
+
+	static bool my_tool_active = true;
+	// Create a window called "My First Tool", with a menu bar.
+	ImGui::Begin( "My First Tool", &my_tool_active, ImGuiWindowFlags_MenuBar );
+	if( ImGui::BeginMenuBar() )
+	{
+		if( ImGui::BeginMenu( "File" ) )
+		{
+			if( ImGui::MenuItem( "Open..", "Ctrl+O" ) ) { /* Do stuff */ }
+			if( ImGui::MenuItem( "Save", "Ctrl+S" ) ) { /* Do stuff */ }
+			if( ImGui::MenuItem( "Close", "Ctrl+W" ) ) { my_tool_active = false; }
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+
+	// Edit a color (stored as ~4 floats)
+	//ImGui::ColorEdit4( "Color", my_color );
+
+	// Plot some values
+	const float my_values[] = { 0.2f, 0.1f, 1.0f, 0.5f, 0.9f, 2.2f };
+	ImGui::PlotLines( "Frame Times", my_values, IM_ARRAYSIZE( my_values ) );
+
+	// Display contents in a scrolling region
+	ImGui::TextColored( ImVec4( 1, 1, 0, 1 ), "Important Stuff" );
+	ImGui::BeginChild( "Scrolling" );
+	for( int n = 0; n < 50; n++ )
+		ImGui::Text( "%04d: Some text", n );
+	ImGui::EndChild();
+	ImGui::End();
+
+	ImGui::Render();
+	ImGui_ImplDX11_RenderDrawData( ImGui::GetDrawData() );
+
 	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"HUD / Stats" );
 	g_globalHUD.OnRender( fElapsedTime );
 	if( g_globalControls.sceneType == SCENE_ONE_SPHERE )

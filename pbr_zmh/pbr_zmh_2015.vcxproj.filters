@@ -12,10 +12,25 @@
     <ClCompile Include="code\SponzaRenderer.cpp" />
     <ClCompile Include="code\Model.cpp" />
     <ClCompile Include="code\EnvMapFilter.cpp" />
+    <ClCompile Include="code\imgui\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="code\imgui\imgui_demo.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="code\imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="code\imgui\imgui_impl_dx11.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
       <UniqueIdentifier>{0f86a617-39f5-4b56-b21d-9952decd18e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{83ae9a95-8c02-4023-92ed-ac968270c3cb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -43,5 +58,26 @@
     <ClInclude Include="code\SponzaRenderer.h" />
     <ClInclude Include="code\Model.h" />
     <ClInclude Include="code\EnvMapFilter.h" />
+    <ClInclude Include="code\imgui\imconfig.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="code\imgui\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="code\imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="code\imgui\stb_rect_pack.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="code\imgui\stb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="code\imgui\stb_truetype.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="code\imgui\imgui_impl_dx11.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
