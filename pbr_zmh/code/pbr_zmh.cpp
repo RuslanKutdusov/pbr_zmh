@@ -69,6 +69,7 @@ RenderTarget						g_directLightRenderTarget;
 RenderTarget						g_indirectLightRenderTarget;
 DepthRenderTarget					g_shadowMap;
 Material							g_material;
+MERLMaterial						g_merlMaterial;
 
 // Image base lighting importance sampling stuff
 UINT g_frameIdx = 0;
@@ -203,8 +204,6 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 	blendDesc.RenderTarget[ 1 ].RenderTargetWriteMask = 0x0f;
 	V_RETURN( pd3dDevice->CreateBlendState( &blendDesc, &g_doubleRtBlendState ) );
 
-	g_material.Load( pd3dDevice, "materials\\default" );
-
 	g_shadowMap.Init( pd3dDevice, SHADOW_MAP_RESOLUTION, SHADOW_MAP_RESOLUTION, "ShadowMap" );
 
 	g_envMapFilter.OnD3D11CreateDevice( pd3dDevice );
@@ -323,7 +322,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 	oneSphereInstance.Roughness = GetOneSphereSceneControls().roughness;
 	oneSphereInstance.Reflectance = GetOneSphereSceneControls().reflectance;
 	oneSphereInstance.Albedo = GetOneSphereSceneControls().albedo;
-	oneSphereInstance.UseMaterial = GetOneSphereSceneControls().useMaterial;
+	oneSphereInstance.MaterialType = GetOneSphereSceneControls().materialType;
 	int instanceCounter = 0;
 	for( int x = -5; x <= 5; x++ )
 	{
@@ -334,7 +333,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 			multSphereInstances[ instanceCounter ].Roughness = ( z + 5 ) / 10.0f;
 			multSphereInstances[ instanceCounter ].Reflectance = 1.0f;
 			multSphereInstances[ instanceCounter ].Albedo = GetMultipleSphereSceneControls().albedo;
-			multSphereInstances[ instanceCounter ].UseMaterial = false;
+			multSphereInstances[ instanceCounter ].MaterialType = MATERIAL_SIMPLE;
 			instanceCounter++;
 		}
 	}
@@ -430,8 +429,7 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 			g_skyRenderer.RenderLightPass( pd3dImmediateContext );
 		if( GetGlobalControls().sceneType == SCENE_ONE_SPHERE || GetGlobalControls().sceneType == SCENE_MULTIPLE_SPHERES )
 		{
-			Material* material = GetOneSphereSceneControls().useMaterial ? &g_material : nullptr;
-			g_sphereRenderer.RenderLightPass( sphereInstances, material, numSphereInstances, pd3dImmediateContext );
+			g_sphereRenderer.RenderLightPass( sphereInstances, &g_material, &g_merlMaterial, numSphereInstances, pd3dImmediateContext );
 		}
 		if( GetGlobalControls().sceneType == SCENE_SPONZA )
 		{
@@ -567,6 +565,7 @@ void CALLBACK OnD3D11DestroyDevice( void* pUserContext )
 	g_indirectLightRenderTarget.Release();
 	g_shadowMap.Release();
 	g_material.Release();
+	g_merlMaterial.Release();
 
 	g_sphereRenderer.OnD3D11DestroyDevice();
 	g_skyRenderer.OnD3D11DestroyDevice();
@@ -642,7 +641,10 @@ void OnResetSamplingCallback()
 
 void OnMaterialChangeCallback()
 {
-	g_material.Load( DXUTGetD3D11Device(), GetOneSphereSceneControls().material );
+	if( GetOneSphereSceneControls().materialType == MATERIAL_TEXTURE )
+		g_material.Load( DXUTGetD3D11Device(), GetOneSphereSceneControls().textureMaterial );
+	if( GetOneSphereSceneControls().materialType == MATERIAL_MERL )
+		g_merlMaterial.Load( DXUTGetD3D11Device(), GetOneSphereSceneControls().merlMaterial );
 	g_resetSampling = true;
 }
 

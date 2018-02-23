@@ -12,7 +12,7 @@ public:
 		float Reflectance;
 		float padding0[ 1 ];
 		DirectX::XMVECTOR Albedo;
-		UINT UseMaterial;
+		UINT MaterialType;
 		UINT padding1[ 3 ];
 	};
 	const UINT MAX_INSTANCES = 128;
@@ -21,7 +21,7 @@ public:
 
 	HRESULT OnD3D11CreateDevice( ID3D11Device* pd3dDevice );
 	void	RenderDepthPass( InstanceParams* instancesParams, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
-	void    RenderLightPass( InstanceParams* instancesParams, Material* material, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
+	void    RenderLightPass( InstanceParams* instancesParams, Material* material, MERLMaterial* merlMaterial, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext );
 	void	RenderPlaneDepthPass( DirectX::XMMATRIX metalnessPlane, DirectX::XMMATRIX roughnessPlane, ID3D11DeviceContext* pd3dImmediateContext );
 	void    RenderPlaneLightPass( DirectX::XMMATRIX metalnessPlane, DirectX::XMMATRIX roughnessPlane, ID3D11DeviceContext* pd3dImmediateContext );
 	void    OnD3D11DestroyDevice();

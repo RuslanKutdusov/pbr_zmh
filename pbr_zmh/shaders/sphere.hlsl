@@ -1,6 +1,10 @@
 #include "global.h"
 #include "lighting.h"
 
+#define MATERIAL_SIMPLE 0
+#define MATERIAL_TEXTURE 1
+#define MATERIAL_MERL 2
+
 cbuffer InstanceParams : register( b1 )
 {
 	struct
@@ -10,15 +14,15 @@ cbuffer InstanceParams : register( b1 )
 		float Roughness;
 		float Reflectance;
 		float4 Albedo;
-		bool UseMaterial;
-		bool3 padding;
+		uint MaterialType;
+		uint3 padding;
 	} InstanceData[ 128 ];
 };
 Texture2D AlbedoTexture : register( t0 );
 Texture2D NormalTexture : register( t1 );
 Texture2D RoughnessTexture : register( t2 );
 Texture2D MetalnessTexture : register( t3 );
-
+Buffer<float> MerlBRDF : register( t4 );
 
 struct VSOutput
 {
@@ -69,7 +73,14 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	float roughness = 0.0f;
 	float reflectance = 1.0f;
 	float3 albedo = 1.0f;
-	if( InstanceData[ input.id ].UseMaterial )
+	if( InstanceData[ input.id ].MaterialType == MATERIAL_SIMPLE )
+	{
+		albedo = InstanceData[ input.id ].Albedo.rgb;
+		metalness = InstanceData[ input.id ].Metalness;
+		roughness = InstanceData[ input.id ].Roughness;
+		reflectance = InstanceData[ input.id ].Reflectance;
+	}
+	else if( InstanceData[ input.id ].MaterialType == MATERIAL_TEXTURE )
 	{
 		albedo = AlbedoTexture.Sample( LinearWrapSampler, input.uv ).rgb;
 		metalness = MetalnessTexture.Sample( LinearWrapSampler, input.uv ).r;
@@ -78,29 +89,29 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 		float3 normalTS = NormalTexture.Sample( LinearWrapSampler, input.uv ).rgb * 2.0f - 1.0f;
 		normal = normalize( mul( normalTS, float3x3( tangent, binormal, normal ) ) );
 	}
-	else
-	{
-		albedo = InstanceData[ input.id ].Albedo.rgb;
-		metalness = InstanceData[ input.id ].Metalness;
-		roughness = InstanceData[ input.id ].Roughness;
-		reflectance = InstanceData[ input.id ].Reflectance;
-	}
 	
 	PSOutput output = ( PSOutput )0;
-	if( EnableDirectLight )
+	if( InstanceData[ input.id ].MaterialType == MATERIAL_MERL )
 	{
-		// Lo = ( Fd + Fs ) * (n,l) * E
-		output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb;
-		if( EnableShadow )
-			output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
+		output.directLight.rgb = CalcDirectLight( MerlBRDF, LightDir.xyz, view, normal, tangent, binormal ) * LightIrradiance.rgb;
 	}
-	if( EnableIndirectLight ) 
+	else
 	{
-		uint2 random = RandVector_v2( pixelPos.xy );
-		output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random );
-		/*output.directLight.rgb += ApproximatedIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random ).rgb;
-		output.indirectLight.rgb = 0;
-		output.indirectLight.a = 0.0;*/
+		if( EnableDirectLight )
+		{
+			// Lo = ( Fd + Fs ) * (n,l) * E
+			output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb;
+			if( EnableShadow )
+				output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
+		}
+		if( EnableIndirectLight ) 
+		{
+			uint2 random = RandVector_v2( pixelPos.xy );
+			output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random );
+			/*output.directLight.rgb += ApproximatedIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random ).rgb;
+			output.indirectLight.rgb = 0;
+			output.indirectLight.a = 0.0;*/
+		}
 	}
 
 	return output;

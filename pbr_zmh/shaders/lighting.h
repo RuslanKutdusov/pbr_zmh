@@ -1,4 +1,5 @@
 #include "hammersley.h"
+#include "merl.h"
 
 static const float DIELECTRIC_SPEC = 0.04f;
 static const float PI = 3.14159265359f;
@@ -103,6 +104,12 @@ float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float per
 	if( EnableSpecularLight )
 		sum += Fs;
 	return sum * NoL;
+}
+
+
+float3 CalcDirectLight( Buffer<float> merlBrdf, float3 L, float3 V, float3 normal, float3 tangent, float3 binormal )
+{
+	return EvaluteMerlBRDF( merlBrdf, L, V, normal, tangent, binormal );
 }
 
 

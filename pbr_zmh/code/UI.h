@@ -10,6 +10,14 @@ enum SCENE_TYPE
 };
 
 
+enum MATERIAL_TYPE
+{
+	MATERIAL_SIMPLE = 0,
+	MATERIAL_TEXTURE,
+	MATERIAL_MERL
+};
+
+
 struct GlobalControls
 {
 	float lightDirVert			= 45.0f;
@@ -36,8 +44,9 @@ struct OneSphereSceneControls
 	float roughness				= 0.5f;
 	float reflectance			= 1.0f;
 	DirectX::XMVECTOR albedo	= DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
-	bool useMaterial			= false;
-	const char* material		= "materials\\default";
+	MATERIAL_TYPE materialType	= MATERIAL_SIMPLE;
+	const char* textureMaterial	= "";
+	const char* merlMaterial	= "";
 };
 
 

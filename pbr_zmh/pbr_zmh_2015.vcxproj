@@ -218,6 +218,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="code\Material.cpp" />
+    <ClCompile Include="code\MERLMaterial.cpp" />
     <ClCompile Include="code\Model.cpp" />
     <ClCompile Include="code\pbr_zmh.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">Create</PrecompiledHeader>
@@ -250,6 +251,7 @@
     <ClInclude Include="code\imgui\stb_textedit.h" />
     <ClInclude Include="code\imgui\stb_truetype.h" />
     <ClInclude Include="code\Material.h" />
+    <ClInclude Include="code\MERLMaterial.h" />
     <ClInclude Include="code\Model.h" />
     <ClInclude Include="code\PostProcess.h" />
     <ClInclude Include="code\Precompiled.h" />

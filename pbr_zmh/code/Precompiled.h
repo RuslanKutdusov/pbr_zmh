@@ -10,6 +10,7 @@
 #include "Helpers.h"
 #include "RenderTarget.h"
 #include "Material.h"
+#include "MERLMaterial.h"
 #include "Model.h"
 
 #include "SphereRenderer.h"

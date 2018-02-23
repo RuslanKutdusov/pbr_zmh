@@ -77,9 +77,9 @@ void SphereRenderer::RenderDepthPass(InstanceParams* instancesParams, UINT numIn
 }
 
 
-void SphereRenderer::RenderLightPass( InstanceParams* instancesParams, Material* material, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext )
+void SphereRenderer::RenderLightPass( InstanceParams* instancesParams, Material* material, MERLMaterial* merlMaterial, UINT numInstances, ID3D11DeviceContext* pd3dImmediateContext )
 {
-	ID3D11ShaderResourceView* srv[ 4 ];
+	ID3D11ShaderResourceView* srv[ 5 ];
 	memset( srv, 0, sizeof( ID3D11ShaderResourceView* ) * 4 );
 	if( material )
 	{
@@ -88,7 +88,10 @@ void SphereRenderer::RenderLightPass( InstanceParams* instancesParams, Material*
 		srv[ 2 ] = material->roughness;
 		srv[ 3 ] = material->metalness;
 	}
-	pd3dImmediateContext->PSSetShaderResources( 0, 4, srv );
+	if( merlMaterial )
+		srv[ 4 ] = merlMaterial->m_brdfSRV;
+
+	pd3dImmediateContext->PSSetShaderResources( 0, 5, srv );
 	Render( instancesParams, numInstances, m_ps, pd3dImmediateContext );
 }
 

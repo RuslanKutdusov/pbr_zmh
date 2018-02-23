@@ -1,12 +1,16 @@
 #include "Precompiled.h"
 #include "imgui\imgui.h"
 #include "imgui\imgui_impl_dx11.h"
+#include <string>
+#include <vector>
 
 using namespace DirectX;
 
 
 namespace
 {
+	using StringArray = std::vector< std::string >;
+
 	const char* g_skyTextureFiles[] = {
 		"HDRs\\galileo_cross.dds",
 		"HDRs\\grace_cross.dds",
@@ -38,6 +42,8 @@ namespace
 		"materials\\T_Paint_Black",
 		"materials\\T_Tile_White",
 	};
+
+	StringArray g_merlMaterials;
 
 	GlobalControls				g_globalControls;
 	OneSphereSceneControls		g_oneSphereSceneControls;
@@ -72,13 +78,45 @@ namespace
 
 		return false;
 	}
+
+
+	void ListFiles( const char* searchDir, StringArray& list )
+	{
+		WIN32_FIND_DATAA ffd;
+		HANDLE hFind = INVALID_HANDLE_VALUE;
+
+		hFind = FindFirstFileA( searchDir, &ffd );
+		if( INVALID_HANDLE_VALUE == hFind )
+			return;
+
+		do
+		{
+			if( ffd.cFileName[ 0 ] == '.' )
+				continue;
+			list.push_back( ffd.cFileName );
+		} while( FindNextFileA( hFind, &ffd ) != 0 );
+
+		FindClose( hFind );
+	}
 }
 
 
 void UIInit()
 {
 	g_D3DSettingsDlg.Init( &g_DialogResourceManager );
+
 	g_globalControls.skyTexture = g_skyTextureFiles[ 0 ];
+
+	g_oneSphereSceneControls.textureMaterial = g_materials[ 0 ];
+
+	ListFiles( "../Media/MERL/*", g_merlMaterials );
+	for( auto& str : g_merlMaterials )
+	{
+		std::string tmp = "MERL/";
+		tmp.append( str );
+		str = std::move( tmp );
+	}
+	g_oneSphereSceneControls.merlMaterial = g_merlMaterials[ 0 ].c_str();
 }
 
 
@@ -212,28 +250,27 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 
 		if( g_globalControls.sceneType == SCENE_ONE_SPHERE )
 		{
-			if( ImGui::Checkbox( "Use Material", &g_oneSphereSceneControls.useMaterial ) )
-				g_onResetSampling();
-
-			if( g_oneSphereSceneControls.useMaterial )
 			{
-				if( ImGui::BeginCombo( "Material", g_oneSphereSceneControls.material ) ) // The second parameter is the label previewed before opening the combo.
+				const char* matType[] = { "Simple", "Texture", "MERL" };
+				if( ImGui::BeginCombo( "Material type", matType[ g_oneSphereSceneControls.materialType ] ) )
 				{
-					for( int n = 0; n < IM_ARRAYSIZE( g_materials ); n++ )
+					for( int n = 0; n < IM_ARRAYSIZE( matType ); n++ )
 					{
-						bool is_selected = ( g_oneSphereSceneControls.material == g_materials[ n ] ); // You can store your selection however you want, outside or inside your objects
-						if( ImGui::Selectable( g_materials[ n ], is_selected ) )
+						bool is_selected = n == g_oneSphereSceneControls.materialType;
+						if( ImGui::Selectable( matType[ n ], is_selected ) )
 						{
-							g_oneSphereSceneControls.material = g_materials[ n ];
+							g_oneSphereSceneControls.materialType = ( MATERIAL_TYPE )n;
 							g_onMaterialChangeCallback();
+							g_onResetSampling();
 						}
 						if( is_selected )
-							ImGui::SetItemDefaultFocus();   // Set the initial focus when opening the combo (scrolling + for keyboard navigation support in the upcoming navigation branch)
+							ImGui::SetItemDefaultFocus();
 					}
 					ImGui::EndCombo();
 				}
 			}
-			else
+
+			if( g_oneSphereSceneControls.materialType == MATERIAL_SIMPLE )
 			{
 				if( ImGui::SliderFloat( "Metalness", &g_oneSphereSceneControls.metalness, 0.0f, 1.0f ) )
 					g_onResetSampling();
@@ -245,6 +282,42 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 				{
 					if( ChooseColor( g_oneSphereSceneControls.albedo ) )
 						g_onResetSampling();
+				}
+			}
+			else if( g_oneSphereSceneControls.materialType == MATERIAL_TEXTURE )
+			{
+				if( ImGui::BeginCombo( "Material", g_oneSphereSceneControls.textureMaterial ) )
+				{
+					for( int n = 0; n < IM_ARRAYSIZE( g_materials ); n++ )
+					{
+						bool is_selected = ( g_oneSphereSceneControls.textureMaterial == g_materials[ n ] );
+						if( ImGui::Selectable( g_materials[ n ], is_selected ) )
+						{
+							g_oneSphereSceneControls.textureMaterial = g_materials[ n ];
+							g_onMaterialChangeCallback();
+						}
+						if( is_selected )
+							ImGui::SetItemDefaultFocus();
+					}
+					ImGui::EndCombo();
+				}
+			}
+			else if( g_oneSphereSceneControls.materialType == MATERIAL_MERL )
+			{
+				if( ImGui::BeginCombo( "Material", g_oneSphereSceneControls.merlMaterial ) )
+				{
+					for( size_t n = 0; n < g_merlMaterials.size(); n++ )
+					{
+						bool is_selected = ( g_oneSphereSceneControls.merlMaterial == g_merlMaterials[ n ].c_str() );
+						if( ImGui::Selectable( g_merlMaterials[ n ].c_str(), is_selected ) )
+						{
+							g_oneSphereSceneControls.merlMaterial = g_merlMaterials[ n ].c_str();
+							g_onMaterialChangeCallback();
+						}
+						if( is_selected )
+							ImGui::SetItemDefaultFocus();
+					}
+					ImGui::EndCombo();
 				}
 			}
 		}

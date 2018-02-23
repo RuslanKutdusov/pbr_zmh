@@ -24,6 +24,7 @@
     <ClCompile Include="code\imgui\imgui_impl_dx11.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
+    <ClCompile Include="code\MERLMaterial.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="ResourceFiles">
@@ -79,5 +80,6 @@
     <ClInclude Include="code\imgui\imgui_impl_dx11.h">
       <Filter>imgui</Filter>
     </ClInclude>
+    <ClInclude Include="code\MERLMaterial.h" />
   </ItemGroup>
 </Project>
