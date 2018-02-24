@@ -143,6 +143,10 @@ void UIInit()
 	g_oneSphereSceneControls.textureMaterial = g_materials[ 0 ];
 
 	ListFiles( "../Media/MERL/*", g_merlMaterials );
+	if( g_merlMaterials.empty() )
+		ListFiles( "../../Media/MERL/*", g_merlMaterials );
+	if( g_merlMaterials.empty() )
+		ListFiles( "Media/MERL/*", g_merlMaterials );
 	for( auto& str : g_merlMaterials )
 	{
 		std::string tmp = "MERL/";
