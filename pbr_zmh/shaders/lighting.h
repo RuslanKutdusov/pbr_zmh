@@ -198,6 +198,7 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 		// diffuse
 		{
 			float3 L = ImportanceSampleDiffuse( Xi, N );
+			//L = normalize( L );
 			float NoL = saturate( dot( N, L ) );
 			if( NoL > 0 )
 			{
@@ -239,16 +240,17 @@ float4 CalcIndirectLight( Buffer<float> merlBrdf, float3 N, float3 V, float3 tan
 		float2 Xi = Hammersley_v1( i + SamplesProcessed, TotalSamples, random );
 
 		float3 L = ImportanceSampleDiffuse( Xi, N );
+		L = normalize( L );
 		float NoL = saturate( dot( N, L ) );
 		if( NoL > 0 )
 		{
 			float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler, L, 0 ).rgb;
 			SampleColor *= EvaluteMerlBRDF( merlBrdf, L, V, N, tangent, binormal );
-			lighting += SampleColor;
+			lighting += SampleColor * sqrt( 1.0 - NoL * NoL );
 		}
 	}
 
-	return float4( lighting * 2 * PI, SamplesInStep );
+	return float4( lighting * PI * PI, SamplesInStep );
 }
 
 
