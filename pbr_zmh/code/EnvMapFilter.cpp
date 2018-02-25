@@ -245,7 +245,7 @@ HRESULT	EnvMapFilter::ReloadShaders( ID3D11Device* pd3dDevice )
 
 	SAFE_RELEASE( m_envMapSpecPrefilter );
 	SAFE_RELEASE( m_brdfLutGen );
-	SAFE_RELEASE( newEnvMapDiffPrefilter );
+	SAFE_RELEASE( m_envMapDiffPrefilter );
 	m_envMapSpecPrefilter = newEnvMapSpecPrefilter;
 	m_envMapDiffPrefilter = newEnvMapDiffPrefilter;
 	m_brdfLutGen = newBrdfLutGen;
