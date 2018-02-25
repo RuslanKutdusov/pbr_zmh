@@ -153,7 +153,8 @@ void UIInit()
 		tmp.append( str );
 		str = std::move( tmp );
 	}
-	g_oneSphereSceneControls.merlMaterial = g_merlMaterials[ 0 ].c_str();
+	if( !g_merlMaterials.empty() )
+		g_oneSphereSceneControls.merlMaterial = g_merlMaterials[ 0 ].c_str();
 }
 
 
