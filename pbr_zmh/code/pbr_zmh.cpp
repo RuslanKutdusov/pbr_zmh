@@ -72,8 +72,6 @@ Material							g_material;
 MERLMaterial						g_merlMaterial;
 
 // Image base lighting importance sampling stuff
-UINT g_frameIdx = 0;
-int g_samplesProcessed = 0;
 bool g_resetSampling = false;
 XMMATRIX g_lastFrameViewProj;
 const UINT SHADOW_MAP_RESOLUTION = 2048;
@@ -206,6 +204,8 @@ HRESULT CALLBACK OnD3D11CreateDevice( ID3D11Device* pd3dDevice, const DXGI_SURFA
 
 	g_envMapFilter.OnD3D11CreateDevice( pd3dDevice );
 
+	g_cachedGlobalParams.SamplesProcessed = 0;
+
     return S_OK;
 }
 
@@ -263,9 +263,9 @@ void FlushGlobalParams( ID3D11DeviceContext* pd3dImmediateContext )
 }
 
 
-void BakeCubeMap( ID3D11DeviceContext* pd3dImmediateContext )
+void BakeEnvMap( ID3D11DeviceContext* pd3dImmediateContext )
 {
-	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Bake cubemap" );
+	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Bake envmap" );
 	ID3D11ShaderResourceView* environmentMap = nullptr;
 	pd3dImmediateContext->PSSetShaderResources( ENVIRONMENT_MAP, 1, &environmentMap );
 	g_skyRenderer.BakeCubemap( pd3dImmediateContext );
@@ -275,7 +275,7 @@ void BakeCubeMap( ID3D11DeviceContext* pd3dImmediateContext )
 
 void PrefilterEnvMap( ID3D11DeviceContext* pd3dImmediateContext )
 {
-	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Filter env map" );
+	DXUT_BeginPerfEvent( DXUT_PERFEVENTCOLOR, L"Prefilter env map" );
 	ID3D11ShaderResourceView* nullSrv = nullptr;
 	pd3dImmediateContext->PSSetShaderResources( PREFILTERED_SPEC_ENV_MAP, 1, &nullSrv );
 	pd3dImmediateContext->PSSetShaderResources( BRDF_LUT, 1, &nullSrv );
@@ -440,9 +440,6 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 
 		DXUT_EndPerfEvent();
 	}
-
-	if( g_samplesProcessed < GetGlobalControls().samplesCount )
-		g_samplesProcessed += GetGlobalControls().samplesPerFrame;
 }
 
 
@@ -452,18 +449,26 @@ void RenderScene( ID3D11DeviceContext* pd3dImmediateContext, float fTime )
 void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateContext,
                                   double fTime, float fElapsedTime, void* pUserContext )
 {
-	g_frameIdx++;
+	g_cachedGlobalParams.FrameIdx++;
 
 	auto pRTV = DXUTGetD3D11RenderTargetView();
 	auto pDSV = DXUTGetD3D11DepthStencilView();
 	CBaseCamera* currentCamera = GetGlobalControls().sceneType == SCENE_ONE_SPHERE ? (CBaseCamera*)&g_modelViewerCamera : (CBaseCamera*)&g_firstPersonCamera;
-	XMMATRIX viewProj = XMMatrixMultiply(currentCamera->GetViewMatrix(), currentCamera->GetProjMatrix());
+	XMMATRIX viewProj = XMMatrixMultiply( currentCamera->GetViewMatrix(), currentCamera->GetProjMatrix() );
 
-	if( g_samplesProcessed == 0 || g_resetSampling || memcmp( &viewProj, &g_lastFrameViewProj, sizeof( XMMATRIX ) ) != 0 ) {
-		pd3dImmediateContext->ClearRenderTargetView( g_indirectLightRenderTarget.rtv, Colors::Black );
+	if( GetGlobalControls().approxLevel == APPROX_LEVEL_IS || GetGlobalControls().approxLevel == APPROX_LEVEL_FIS )
+	{
+		if( memcmp( &viewProj, &g_lastFrameViewProj, sizeof( XMMATRIX ) ) != 0 )
+			g_resetSampling = true;
+	}
+
+	if( g_cachedGlobalParams.SamplesProcessed == 0 || g_resetSampling ) 
+	{
+		float black[ 4 ] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		pd3dImmediateContext->ClearRenderTargetView( g_indirectLightRenderTarget.rtv, black );
 		g_lastFrameViewProj = viewProj;
 		g_resetSampling = false;
-		g_samplesProcessed = 0;
+		g_cachedGlobalParams.SamplesProcessed = 0;
 	}
 
 	// If the settings dialog is being shown, then render it instead of rendering the app's scene
@@ -496,10 +501,8 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		g_cachedGlobalParams.ShadowMatrix = XMMatrixIdentity();
 		g_cachedGlobalParams.IndirectLightIntensity = GetGlobalControls().indirectLightIntensity;
 		g_cachedGlobalParams.ApproxLevel = GetGlobalControls().approxLevel;
-		g_cachedGlobalParams.FrameIdx = g_frameIdx;
 		g_cachedGlobalParams.TotalSamples = GetGlobalControls().samplesCount;
 		g_cachedGlobalParams.SamplesInStep = GetGlobalControls().samplesPerFrame;
-		g_cachedGlobalParams.SamplesProcessed = g_samplesProcessed;
 		g_cachedGlobalParams.EnableDirectLight = GetGlobalControls().enableDirectLight;
 		g_cachedGlobalParams.EnableIndirectLight = GetGlobalControls().enableIndirectLight;
 		g_cachedGlobalParams.EnableShadow = GetGlobalControls().enableShadow;
@@ -508,8 +511,9 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		FlushGlobalParams( pd3dImmediateContext );
 	}
 
-	BakeCubeMap( pd3dImmediateContext );
-	//PrefilterEnvMap( pd3dImmediateContext );
+	BakeEnvMap( pd3dImmediateContext );
+	if( GetGlobalControls().approxLevel == APPROX_LEVEL_BAKED_SPLIT_SUM_NV && g_cachedGlobalParams.SamplesProcessed == 0 )
+		PrefilterEnvMap( pd3dImmediateContext );
 	RenderScene( pd3dImmediateContext, ( float )fTime );	
 
 	//
@@ -527,8 +531,18 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 	wchar_t debugStr[ debugStrLen ];
 	memset( debugStr, 0, debugStrLen * sizeof( wchar_t ) );
 	XMVECTOR p = currentCamera->GetEyePt();
-	swprintf_s( debugStr, L"Camera position: %1.2f %1.2f %1.2f\nSamples processed: %d", p.m128_f32[ 0 ], p.m128_f32[ 1 ], p.m128_f32[ 2 ], g_samplesProcessed );
+	swprintf_s( debugStr, L"Camera position: %1.2f %1.2f %1.2f\nSamples processed: %d", p.m128_f32[ 0 ], p.m128_f32[ 1 ], p.m128_f32[ 2 ], g_cachedGlobalParams.SamplesProcessed );
 	UIRender( pd3dDevice, pd3dImmediateContext, fElapsedTime, debugStr );
+
+	if( GetGlobalControls().approxLevel == APPROX_LEVEL_IS || GetGlobalControls().approxLevel == APPROX_LEVEL_FIS )
+	{
+		if( g_cachedGlobalParams.SamplesProcessed < ( UINT )GetGlobalControls().samplesCount )
+			g_cachedGlobalParams.SamplesProcessed += GetGlobalControls().samplesPerFrame;
+	}
+	else
+	{
+		g_cachedGlobalParams.SamplesProcessed = ( UINT )GetGlobalControls().samplesCount;
+	}
 }
 
 

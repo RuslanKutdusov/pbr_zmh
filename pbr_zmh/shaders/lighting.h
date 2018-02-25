@@ -5,6 +5,12 @@ static const float DIELECTRIC_SPEC = 0.04f;
 static const float PI = 3.14159265359f;
 static const float INV_PI = 0.31830988618f;
 
+static const uint APPROX_LEVEL_IS = 0;
+static const uint APPROX_LEVEL_FIS = 1;
+static const uint APPROX_LEVEL_SPLIT_SUM = 2;
+static const uint APPROX_LEVEL_SPLIT_SUM_NV = 3;
+static const uint APPROX_LEVEL_BAKED_SPLIT_SUM_NV = 4;
+
 
 float PerceptualRoughnessToRoughness( float perceptualRoughness ) {
 	return perceptualRoughness * perceptualRoughness;
@@ -183,11 +189,14 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 			float VoH = saturate( dot( V, H ) );
 			if( NoL > 0 )
 			{
-				float pdf = D_GGX( NoH, roughness ) * NoH / (4*VoH);
-				
-				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
-				float solidAngleSample = 1.0 / (TotalSamples * pdf);
-				float lod = roughness == 0 ? 0 : max( 0.5 * log2(solidAngleSample/solidAngleTexel), 0.0f );
+				float lod = 0;
+				if( ApproxLevel == APPROX_LEVEL_FIS )
+				{
+					float pdf = D_GGX( NoH, roughness ) * NoH / (4*VoH);
+					float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
+					float solidAngleSample = 1.0 / (TotalSamples * pdf);
+					lod = roughness == 0 ? 0 : max( 0.5 * log2(solidAngleSample/solidAngleTexel), 0.0f );
+				}
 				float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb;
 
 				float Vis = Vis_SmithJointGGX( NoL, NoV, roughness );
@@ -202,14 +211,14 @@ float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualR
 			float NoL = saturate( dot( N, L ) );
 			if( NoL > 0 )
 			{
-				// Compute Lod using inverse solid angle and pdf.
-				// From Chapter 20.4 Mipmap filtered samples in GPU Gems 3.
-				// http://http.developer.nvidia.com/GPUGems3/gpugems3_ch20.html
-				float pdf = NoL * INV_PI;
-				
-				float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
-				float solidAngleSample = 1.0 / (TotalSamples * pdf);
-				float lod = 0.5 * log2((float)(solidAngleSample / solidAngleTexel));
+				float lod = 0;
+				if( ApproxLevel == APPROX_LEVEL_FIS )
+				{
+					float pdf = NoL * INV_PI;
+					float solidAngleTexel = 4 * PI / ( 6 * cubeWidth * cubeWidth );
+					float solidAngleSample = 1.0 / ( TotalSamples * pdf );
+					lod = 0.5 * log2( ( float )( solidAngleSample / solidAngleTexel ) );
+				}
 
 				float3 SampleColor = EnvironmentMap.SampleLevel( LinearWrapSampler, L, lod ).rgb;
 				DiffuseLighting += SampleColor;
@@ -254,11 +263,6 @@ float4 CalcIndirectLight( Buffer<float> merlBrdf, float3 N, float3 V, float3 tan
 }
 
 
-static const uint NUM_SAMPLES = 128;
-static const uint NUM_MIPS = 9;
-
-
-
 float3 PrefilterSpecularEnvMap( float roughness, float3 N, float3 V, uint2 random )
 {
 	uint cubeWidth, cubeHeight;
@@ -266,9 +270,9 @@ float3 PrefilterSpecularEnvMap( float roughness, float3 N, float3 V, uint2 rando
 	
 	float weight = 0.0f;
 	float3 accum = 0.0f;
-	for( uint i = 0; i < NUM_SAMPLES; i++ )
+	for( uint i = 0; i < TotalSamples; i++ )
 	{
-		float2 Xi = Hammersley_v1( i, NUM_SAMPLES, random );
+		float2 Xi = Hammersley_v1( i, TotalSamples, random );
 		float3 H = ImportanceSampleGGX( Xi, roughness, N );
 		float3 L = 2 * dot( V, H ) * H - V;
 		float NoV = abs( dot( N, V ) ) + 1e-5f;
@@ -280,7 +284,7 @@ float3 PrefilterSpecularEnvMap( float roughness, float3 N, float3 V, uint2 rando
 			float pdf = D_GGX( NoH, roughness ) * NoH / (4*VoH);
 			
 			float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
-			float solidAngleSample = 1.0 / (NUM_SAMPLES * pdf);
+			float solidAngleSample = 1.0 / (TotalSamples * pdf);
 			float lod = roughness == 0 ? 0 : max( 0.5 * log2(solidAngleSample/solidAngleTexel), 0.0f );
 			
 			accum += EnvironmentMap.SampleLevel( LinearWrapSampler , L, lod ).rgb * NoL;
@@ -288,7 +292,7 @@ float3 PrefilterSpecularEnvMap( float roughness, float3 N, float3 V, uint2 rando
 		}
 	}
 	
-	//weight = NUM_SAMPLES;
+	//weight = TotalSamples;
 	return accum / weight;
 }
 
@@ -300,9 +304,9 @@ float3 PrefilterDiffuseEnvMap( float3 N, uint2 random )
 	
 	float weight = 0.0f;
 	float3 accum = 0.0f;
-	for( uint i = 0; i < NUM_SAMPLES; i++ )
+	for( uint i = 0; i < TotalSamples; i++ )
 	{
-		float2 Xi = Hammersley_v1( i, NUM_SAMPLES, random );
+		float2 Xi = Hammersley_v1( i, TotalSamples, random );
 		float3 L = ImportanceSampleDiffuse( Xi, N );
 		float NoL = saturate( dot( N, L ) );
 		if( NoL > 0 )
@@ -313,14 +317,14 @@ float3 PrefilterDiffuseEnvMap( float3 N, uint2 random )
 			float pdf = NoL * INV_PI;
 			
 			float solidAngleTexel = 4 * PI / (6 * cubeWidth * cubeWidth);
-			float solidAngleSample = 1.0 / (NUM_SAMPLES * pdf);
+			float solidAngleSample = 1.0 / (TotalSamples * pdf);
 			float lod = 0.5 * log2((float)(solidAngleSample / solidAngleTexel));
 
 			accum += EnvironmentMap.SampleLevel( LinearWrapSampler, L, lod ).rgb;
 		}
 	}
 	
-	weight = NUM_SAMPLES;
+	weight = TotalSamples;
 	return accum / weight;
 }
 
@@ -332,9 +336,9 @@ float2 GenerateBRDFLut( float roughness, float NoV, uint2 random )
 	float3 V = float3( sqrt( 1.0 - NoV * NoV ), 0.0, NoV );
 	
 	float2 lut = float2( 0.0, 0.0 );
-	for( uint i = 0; i < NUM_SAMPLES; i++ ) 
+	for( uint i = 0; i < TotalSamples; i++ ) 
 	{
-		float2 Xi = Hammersley_v1( i, NUM_SAMPLES, random );
+		float2 Xi = Hammersley_v1( i, TotalSamples, random );
 		float3 H = ImportanceSampleGGX( Xi, roughness, N );
 		float3 L = 2 * dot( V, H ) * H - V;
 		float NoL = saturate( dot( N, L ) );
@@ -349,7 +353,7 @@ float2 GenerateBRDFLut( float roughness, float NoV, uint2 random )
 			lut.y += Vis * Fc;
 		}
 	}
-	return lut / float(NUM_SAMPLES);
+	return lut / float(TotalSamples);
 }
 
 
@@ -376,17 +380,17 @@ float3 ApproximatedIndirectLight( float3 N, float3 V, float metalness, float per
 	float3 L = 0;
 	float2 lut = 0;
 
-	if( ApproxLevel == 0 )
+	if( ApproxLevel == APPROX_LEVEL_SPLIT_SUM )
 	{
 		L = PrefilterSpecularEnvMap( roughness, N, V, random );
 		lut = GenerateBRDFLut( roughness, NoV, random );
 	}
-	else if( ApproxLevel == 1 )
+	else if( ApproxLevel == APPROX_LEVEL_SPLIT_SUM_NV )
 	{
 		L = PrefilterSpecularEnvMap( roughness, R, R, random );
 		lut = GenerateBRDFLut( roughness, NoV, random );
 	} 
-	else if( ApproxLevel == 2 )
+	else if( ApproxLevel == APPROX_LEVEL_BAKED_SPLIT_SUM_NV )
 	{
 		float width, height, numberOfLevels;
 		PrefilteredSpecularEnvMap.GetDimensions( 0, width, height, numberOfLevels );
@@ -401,11 +405,11 @@ float3 ApproximatedIndirectLight( float3 N, float3 V, float metalness, float per
 		ret += L * ( F0 * lut.x + lut.y );
 	
 	L = 0;
-	if( ApproxLevel == 0 || ApproxLevel == 1 )
+	if( ApproxLevel == APPROX_LEVEL_SPLIT_SUM || ApproxLevel == APPROX_LEVEL_SPLIT_SUM_NV )
 	{
 		L = PrefilterDiffuseEnvMap( N, random );
 	}
-	else if( ApproxLevel == 2 )
+	else if( ApproxLevel == APPROX_LEVEL_BAKED_SPLIT_SUM_NV )
 	{
 		L = PrefilteredDiffuseEnvMap.Sample( LinearWrapSampler, N ).rgb;
 	}

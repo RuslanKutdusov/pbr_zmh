@@ -93,10 +93,14 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	PSOutput output = ( PSOutput )0;
 	uint2 random = RandVector_v2( pixelPos.xy );
 
+	float shadow = 1;
+	if( EnableShadow )
+		shadow = CalcShadow( input.worldPos, normalize( input.normal ) );
+
 	if( InstanceData[ input.id ].MaterialType == MATERIAL_MERL )
 	{
 		if( EnableDirectLight )
-			output.directLight.rgb = CalcDirectLight( MerlBRDF, LightDir.xyz, view, normal, tangent, binormal ) * LightIrradiance.rgb;
+			output.directLight.rgb = CalcDirectLight( MerlBRDF, LightDir.xyz, view, normal, tangent, binormal ) * LightIrradiance.rgb * shadow;
 
 		if( EnableIndirectLight ) 
 			output.indirectLight.rgba = CalcIndirectLight( MerlBRDF, normal, view, tangent, binormal, random );
@@ -106,19 +110,22 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 		if( EnableDirectLight )
 		{
 			// Lo = ( Fd + Fs ) * (n,l) * E
-			output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb;
+			output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb * shadow;
 		}
 		if( EnableIndirectLight ) 
 		{
-			output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random );
-			/*output.directLight.rgb += ApproximatedIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random ).rgb;
-			output.indirectLight.rgb = 0;
-			output.indirectLight.a = 0.0;*/
+			if( ApproxLevel == APPROX_LEVEL_IS || ApproxLevel == APPROX_LEVEL_FIS )
+			{
+				output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random );
+			}
+			else
+			{
+				output.directLight.rgb += ApproximatedIndirectLight( normal, view, metalness, roughness, reflectance, albedo, random ).rgb;
+				output.indirectLight.rgb = 0;
+				output.indirectLight.a = 0.0;
+			}
 		}
 	}
-
-	if( EnableShadow )
-		output.directLight.rgb *= CalcShadow( input.worldPos, normalize( input.normal ) );
 
 	return output;
 }

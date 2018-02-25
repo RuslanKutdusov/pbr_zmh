@@ -259,7 +259,26 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 
 		if( ImGui::SliderFloat( "Indirect light intensity", &g_globalControls.indirectLightIntensity, 0.0f, 20.0f ) )
 			g_onResetSampling();
-		ImGui::SliderInt( "Approximation level", &g_globalControls.approxLevel, 0, 2 );
+		
+		{
+			const char* str[] = { "Importance sampling", "Filtered importance sampling", "Split sum", "Split sum N=V", "Baked split sum" };
+			if( ImGui::BeginCombo( "Indirect light approximation", str[ g_globalControls.approxLevel ] ) )
+			{
+				for( int n = 0; n < IM_ARRAYSIZE( str ); n++ )
+				{
+					bool is_selected = g_globalControls.approxLevel == n;
+					if( ImGui::Selectable( str[ n ], is_selected ) )
+					{
+						g_globalControls.approxLevel = ( APPROXIMATION_LEVEL )n;
+						g_onResetSampling();
+					}
+					if( is_selected )
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
+			}
+		}
+
 		ImGui::SliderFloat( "Exposure", &g_globalControls.exposure, 0.0f, 5.0f );
 		ImGui::Checkbox( "Draw sky", &g_globalControls.drawSky );
 		{

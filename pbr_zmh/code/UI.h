@@ -18,6 +18,16 @@ enum MATERIAL_TYPE
 };
 
 
+enum APPROXIMATION_LEVEL
+{
+	APPROX_LEVEL_IS = 0,
+	APPROX_LEVEL_FIS,
+	APPROX_LEVEL_SPLIT_SUM,
+	APPROX_LEVEL_SPLIT_SUM_NV,
+	APPROX_LEVEL_BAKED_SPLIT_SUM_NV
+};
+
+
 struct GlobalControls
 {
 	float lightDirVert			= 45.0f;
@@ -27,7 +37,7 @@ struct GlobalControls
 	int samplesPerFrame			= 16;
 	DirectX::XMVECTOR lightColor = DirectX::XMVectorSet( 1.0f, 1.0f, 1.0f, 0.0f );
 	float indirectLightIntensity = 1.0f;
-	int approxLevel				= 0;
+	APPROXIMATION_LEVEL approxLevel	= APPROX_LEVEL_FIS;
 	bool enableDirectLight		= true;
 	bool enableIndirectLight	= true;
 	bool enableShadow			= true;
