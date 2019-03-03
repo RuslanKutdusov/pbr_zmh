@@ -246,7 +246,7 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 		}
 		ImGui::SliderFloat( "Light vertical angle", &g_globalControls.lightDirVert, 0.0f, 180.0f );
 		ImGui::SliderFloat( "Light horizontal angle", &g_globalControls.lightDirHor, 0.0f, 180.0f );
-		ImGui::SliderFloat( "Light irradiance( W/m2 )", &g_globalControls.lightIrradiance, 0.0f, 20.0f );
+		ImGui::SliderFloat( "Light illuminance( lux )", &g_globalControls.lightIlluminance, 0.0f, 20.0f );
 		if( ImGui::Button( "Light color" ) )
 			ChooseColor( g_globalControls.lightColor );
 
@@ -258,7 +258,7 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 			g_onResetSampling();
 		}
 
-		if( ImGui::SliderFloat( "Indirect light intensity", &g_globalControls.indirectLightIntensity, 0.0f, 20.0f ) )
+		if( ImGui::SliderFloat( "Indirect light intensity", &g_globalControls.indirectLightIntensity, 0.0f, 5.0f ) )
 			g_onResetSampling();
 		
 		{
@@ -399,7 +399,7 @@ void UIRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext* pd3dImmediateConte
 
 		if( g_globalControls.sceneType == SCENE_SPONZA )
 		{
-			ImGui::SliderFloat( "Point light flux( Watt )", &g_sponzaSceneControls.pointLightFlux, 0.0f, 5.0f );
+			ImGui::SliderFloat( "Point light luminous power(lumen)", &g_sponzaSceneControls.pointLightFlux, 0.0f, 5.0f );
 			if( ImGui::Button( "Point light color" ) )
 				ChooseColor( g_sponzaSceneControls.pointLightColor );
 		}

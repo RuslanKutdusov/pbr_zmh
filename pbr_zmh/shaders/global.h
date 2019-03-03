@@ -5,7 +5,7 @@ cbuffer GlobalParams : register( b0 )
 	float4x4 ViewProjMatrix;
 	float4 ViewPos;
 	float4 LightDir;
-	float4 LightIrradiance;
+	float4 LightIlluminance;
 	float4x4 ShadowMatrix;
 	float IndirectLightIntensity;
 	uint ApproxLevel;

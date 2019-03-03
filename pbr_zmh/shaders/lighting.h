@@ -62,22 +62,22 @@ void CalcCdiffAndF0( float3 albedo, float metalness, float reflectance, out floa
 }
 
 
-// вычисление яркости(radiance) рассеянного(diffuse) и отраженного(specular) света
+// вычисление яркости(luminance) рассеянного(diffuse) и отраженного(specular) света
 // от поверхности, освещенной точечным, spot или направленным источником света:
 // ( Fd + Fs ) * (n,l) * L * dw
 // Fd - diffuse BRDF
 // Fs - specular BRDF
-// L - radiance от источника света, dw - телесный угол.
-// E = L * dw - irradiance от источника.
+// L - яркость от источника света, dw - телесный угол.
+// E = L * dw - illuminance от источника.
 // для точечных источников или spot light:
 //         Ф
 // E = -------------
 //      4 * pi * r^2
-// Ф - поток излучения, Ватт.
+// Ф - световой поток, люмен
 // r - расстояние от источника до поверхности
 // Для направленных E задается как параметр.
 // Функция вычисляет ( Fd + Fs ) * (n,l)
-// Итого чтобы вычислить radiance рассеянного(diffuse) и отраженного(specular) света:
+// Итого чтобы вычислить luminance рассеянного(diffuse) и отраженного(specular) света:
 // CalcDirectLight(..) * E.
 float3 CalcDirectLight( float3 N, float3 L, float3 V, float metalness, float perceptualRoughness, float reflectance, float3 albedo )
 {
@@ -159,7 +159,7 @@ float3 ImportanceSampleDiffuse( float2 Xi, float3 N )
 }
 
 
-// Вычисляет radiance от окружения. Тут численно считается интеграл reflectance equation
+// Вычисляет luminance от окружения. Тут численно считается интеграл reflectance equation
 // методом Монте-Карло с выборкой по значимости.
 float4 CalcIndirectLight( float3 N, float3 V, float metalness, float perceptualRoughness, float reflectance, float3 albedo, uint2 random )
 {

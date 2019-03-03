@@ -100,7 +100,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	if( InstanceData[ input.id ].MaterialType == MATERIAL_MERL )
 	{
 		if( EnableDirectLight )
-			output.directLight.rgb = CalcDirectLight( MerlBRDF, LightDir.xyz, view, normal, tangent, binormal ) * LightIrradiance.rgb * shadow;
+			output.directLight.rgb = CalcDirectLight( MerlBRDF, LightDir.xyz, view, normal, tangent, binormal ) * LightIlluminance.rgb * shadow;
 
 		if( EnableIndirectLight ) 
 			output.indirectLight.rgba = CalcIndirectLight( MerlBRDF, normal, view, tangent, binormal, random );
@@ -110,7 +110,7 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 		if( EnableDirectLight )
 		{
 			// Lo = ( Fd + Fs ) * (n,l) * E
-			output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIrradiance.rgb * shadow;
+			output.directLight.rgb = CalcDirectLight( normal, LightDir.xyz, view, metalness, roughness, reflectance, albedo ) * LightIlluminance.rgb * shadow;
 		}
 		if( EnableIndirectLight ) 
 		{

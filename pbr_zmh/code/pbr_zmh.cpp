@@ -24,7 +24,7 @@ struct GlobalParams
 	XMMATRIX ViewProjMatrix;
 	XMVECTOR ViewPos;
 	XMVECTOR LightDir;
-	XMVECTOR LightIrradiance;
+	XMVECTOR LightIlluminance;
 	XMMATRIX ShadowMatrix;
 	float IndirectLightIntensity;
 	UINT ApproxLevel;
@@ -497,7 +497,7 @@ void CALLBACK OnD3D11FrameRender( ID3D11Device* pd3dDevice, ID3D11DeviceContext*
 		float lightDirVert = ToRad( ( float )GetGlobalControls().lightDirVert );
 		float lightDirHor = ToRad( ( float )GetGlobalControls().lightDirHor );
 		g_cachedGlobalParams.LightDir = XMVectorSet( sin( lightDirVert ) * sin( lightDirHor ), cos( lightDirVert ), sin( lightDirVert ) * cos( lightDirHor ), 0.0f );
-		g_cachedGlobalParams.LightIrradiance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIrradiance );
+		g_cachedGlobalParams.LightIlluminance = XMVectorScale( GetGlobalControls().lightColor, GetGlobalControls().lightIlluminance);
 		g_cachedGlobalParams.ShadowMatrix = XMMatrixIdentity();
 		g_cachedGlobalParams.IndirectLightIntensity = GetGlobalControls().indirectLightIntensity;
 		g_cachedGlobalParams.ApproxLevel = GetGlobalControls().approxLevel;
