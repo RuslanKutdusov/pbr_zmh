@@ -81,7 +81,16 @@ PSOutput ps_main( VSOutput input, float4 pixelPos : SV_Position )
 	if( EnableIndirectLight ) 
 	{
 		uint2 random = RandVector_v2( pixelPos.xy );
-		output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, 1.0f, albedo, random );
+		if( ApproxLevel == APPROX_LEVEL_IS || ApproxLevel == APPROX_LEVEL_FIS )
+		{
+			output.indirectLight.rgba = CalcIndirectLight( normal, view, metalness, roughness, 1.0f, albedo, random );
+		}
+		else
+		{
+			output.directLight.rgb += ApproximatedIndirectLight( normal, view, metalness, roughness, 1.0f, albedo, random ).rgb;
+			output.indirectLight.rgb = 0;
+			output.indirectLight.a = 0.0;
+		}
 	}
 
 	return output;
